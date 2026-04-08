@@ -1,0 +1,15 @@
+node_modules
+.next
+dist
+coverage
+.turbo
+.env
+.env.*
+!.env.example
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+apps/api/generated
+apps/api/prisma/dev.db
+apps/api/prisma/dev.db-journal
+

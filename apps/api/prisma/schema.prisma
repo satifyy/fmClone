@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Save {
+  id        String   @id
+  name      String
+  clubId    String
+  active    Boolean  @default(false)
+  createdAt DateTime
+  seasons   Season[]
+  clubs     Club[]
+  players   Player[]
+  fixtures  Fixture[]
+}
+
+model Season {
+  id             String   @id
+  saveId         String
+  year           Int
+  currentDate    DateTime
+  phase          String
+  currentMatchday Int
+  save           Save     @relation(fields: [saveId], references: [id])
+}
+
+model Club {
+  id              String  @id
+  saveId          String
+  name            String
+  shortName       String
+  reputation      Int
+  balance         Int
+  wageBudget      Int
+  transferBudget  Int
+  facilities      Int
+  coaching        Int
+  academy         Int
+  boardExpectation String
+  styleIdentity   String
+  userControlled  Boolean
+  save            Save    @relation(fields: [saveId], references: [id])
+  players         Player[]
+}
+
+model Player {
+  id            String   @id
+  saveId        String
+  clubId        String
+  firstName     String
+  lastName      String
+  age           Int
+  nationality   String
+  preferredFoot String
+  role          String
+  morale        Int
+  fatigue       Int
+  fitness       Int
+  potential     Int
+  attributes    Json
+  positions     Json
+  traits        Json
+  save          Save     @relation(fields: [saveId], references: [id])
+  club          Club     @relation(fields: [clubId], references: [id])
+}
+
+model Fixture {
+  id         String   @id
+  saveId     String
+  competition String
+  matchday   Int
+  date       DateTime
+  homeClubId String
+  awayClubId String
+  status     String
+  save       Save     @relation(fields: [saveId], references: [id])
+}
+
