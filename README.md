@@ -19,3 +19,6 @@ Monorepo scaffold for a fictional soccer management simulation game.
 
 This repository is scaffolded around a pure simulation core plus a modular monolith API. The API currently includes module boundaries, route skeletons, Prisma schema, and an in-memory bootstrap dataset so the application shape is concrete before database wiring is completed.
 
+## Documentation
+
+Project docs live in [docs/README.md](./docs/README.md).
