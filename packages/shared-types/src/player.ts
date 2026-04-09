@@ -42,6 +42,92 @@ export type PlayerCondition = {
   suspensionRisk: number;
 };
 
+export type PlayerSquadStatus = "starters" | "bench" | "reserves" | "injured" | "suspended";
+
+export type PlayerValueSnapshot = {
+  amount: number;
+  currency: "USD";
+  trend: "rising" | "steady" | "falling";
+  confidence: number;
+};
+
+export type PlayerFormSnapshot = {
+  score: number;
+  trend: "up" | "steady" | "down";
+  summary: string;
+  recentRatings: number[];
+  sampleSize?: number;
+  appearances?: number;
+  starts?: number;
+  minutes: number;
+  goals?: number;
+  assists?: number;
+  averageRating?: number;
+  goalContributions: number;
+  cleanSheets: number;
+};
+
+export type PlayerContract = {
+  expiresOn: string;
+  yearsRemaining: number;
+  weeklyWage: number;
+  squadStatus: "regular starter" | "rotation" | "prospect" | "emergency cover" | "transfer listed";
+  releaseClause?: number;
+};
+
+export type PlayerRoleFit = {
+  score: number;
+  tacticalRole: string;
+  summary: string;
+};
+
+export type PlayerDevelopment = {
+  trajectory: "accelerating" | "steady" | "plateauing";
+  trend: "up" | "steady" | "down";
+  recentGrowth: number;
+  ceiling: number;
+  summary: string;
+};
+
+export type PlayerSeasonStats = {
+  appearances: number;
+  starts: number;
+  minutes: number;
+  goals: number;
+  assists: number;
+  cleanSheets: number;
+  averageRating: number;
+};
+
+export type PlayerHistoryEntry = {
+  season: string;
+  clubName: string;
+  competition: string;
+  appearances: number;
+  goals: number;
+  assists: number;
+  averageRating: number;
+  minutes: number;
+};
+
+export type PlayerInjuryRecord = {
+  type: string;
+  status: "fit" | "rehab" | "out";
+  occurredOn: string;
+  expectedReturn?: string;
+  daysOut: number;
+  gamesMissed: number;
+};
+
+export type PlayerScoutingKnowledge = {
+  scope: "full" | "partial" | "limited";
+  confidence: number;
+  lastUpdated: string;
+  summary: string;
+  knownStrengths: string[];
+  unknowns: string[];
+};
+
 export type Player = {
   id: string;
   saveId: string;
@@ -57,7 +143,35 @@ export type Player = {
   condition: PlayerCondition;
   traits: string[];
   potential: number;
+  squadStatus: PlayerSquadStatus;
+  marketValue: PlayerValueSnapshot;
+  recentForm: PlayerFormSnapshot;
+  contract: PlayerContract;
+  roleFit: PlayerRoleFit;
+  development: PlayerDevelopment;
+  seasonStats: PlayerSeasonStats;
+  history: PlayerHistoryEntry[];
+  injuries: PlayerInjuryRecord[];
+  scouting: PlayerScoutingKnowledge;
 };
+
+export type SquadGroup = {
+  status: PlayerSquadStatus;
+  label: string;
+  description: string;
+  players: Player[];
+};
+
+export type ClubSquad = {
+  clubId: string;
+  formation: string;
+  players: Player[];
+  groups: SquadGroup[];
+};
+
+export type SquadStatus = PlayerSquadStatus;
+export type SquadPlayer = Player;
+export type PlayerRecentForm = PlayerFormSnapshot;
 
 export type PlayerSummary = {
   id: string;
@@ -66,8 +180,11 @@ export type PlayerSummary = {
   age: number;
   positions: PlayerPosition[];
   role: string;
+  squadStatus: PlayerSquadStatus;
   morale: number;
   fatigue: number;
   fitness: number;
+  marketValue: PlayerValueSnapshot;
+  recentForm: PlayerFormSnapshot;
+  seasonStats: PlayerSeasonStats;
 };
-

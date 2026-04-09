@@ -20,6 +20,8 @@
 - add real quick sim and full sim UI flows
 - add match result screen and match center detail
 - wire tactics and training updates to real mutations
+- add persistent progression controls for advancing time
+- make dashboard, squad, and tactics screens operational rather than read-only
 
 ## Phase 4: management depth
 
@@ -27,6 +29,15 @@
 - transfer market and AI recruitment logic
 - season rollover and awards
 - richer analytics and dashboards
+- full squad tables with form and value
+- player card pages with season stats and contract context
+- historical fixtures and standings views
+- club detail pages
+- league rules and relegation context
+- transfer center workflow
+- scouting system with uncertain external player knowledge
+- finances, board, and ownership management
+- season analytics page with historical comparisons
 
 ## Phase 5: balancing and devtools
 
@@ -41,4 +52,3 @@
 - letting the frontend own game logic
 - overgrowing the in-memory world store instead of replacing it
 - adding new systems before save scoping and transaction boundaries are solid
-

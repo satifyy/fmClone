@@ -4,6 +4,17 @@ import { z } from "zod";
 import { worldStore } from "../../lib/world-store";
 
 export const transfersRoutes: FastifyPluginAsync = async (app) => {
+  app.get("/transfers/center", async (request, reply) => {
+    const query = z.object({ clubId: z.string().default("club-harbor") }).parse(request.query);
+    const center = worldStore.getTransferCenter(query.clubId);
+    if (!center) {
+      reply.code(404);
+      return { message: "Transfer center not found" };
+    }
+
+    return center;
+  });
+
   app.get("/transfers/targets", async (request) => {
     const query = z.object({ clubId: z.string().default("club-harbor") }).parse(request.query);
     return worldStore.getTransferTargets(query.clubId);
@@ -36,4 +47,3 @@ export const transfersRoutes: FastifyPluginAsync = async (app) => {
 
   app.get("/transfers/history", async () => worldStore.listTransferHistory());
 };
-

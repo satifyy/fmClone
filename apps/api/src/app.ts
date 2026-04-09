@@ -9,6 +9,7 @@ import { leagueRoutes } from "./modules/league/routes";
 import { matchesRoutes } from "./modules/matches/routes";
 import { playersRoutes } from "./modules/players/routes";
 import { savesRoutes } from "./modules/saves/routes";
+import { scoutingRoutes } from "./modules/scouting/routes";
 import { seasonsRoutes } from "./modules/seasons/routes";
 import { tacticsRoutes } from "./modules/tactics/routes";
 import { trainingRoutes } from "./modules/training/routes";
@@ -23,6 +24,7 @@ export const buildApp = () => {
   app.register(savesRoutes);
   app.register(clubsRoutes);
   app.register(playersRoutes);
+  app.register(scoutingRoutes);
   app.register(tacticsRoutes);
   app.register(trainingRoutes);
   app.register(fixturesRoutes);
@@ -35,4 +37,3 @@ export const buildApp = () => {
 
   return app;
 };
-

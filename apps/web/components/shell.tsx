@@ -3,11 +3,17 @@ import { ReactNode } from "react";
 
 const navItems = [
   { href: "/", label: "Dashboard" },
+  { href: "/inbox", label: "Inbox" },
+  { href: "/match-center", label: "Match Center" },
+  { href: "/training", label: "Training" },
+  { href: "/scouting", label: "Scouting" },
+  { href: "/fixtures", label: "Fixtures" },
   { href: "/squad", label: "Squad" },
   { href: "/tactics", label: "Tactics" },
-  { href: "/fixtures", label: "Fixtures" },
   { href: "/standings", label: "Standings" },
   { href: "/transfers", label: "Transfers" },
+  { href: "/finances", label: "Finances" },
+  { href: "/season-analytics", label: "Analytics" },
   { href: "/season-summary", label: "Season" }
 ];
 
@@ -39,4 +45,3 @@ export const Shell = ({ children }: { children: ReactNode }) => (
     </div>
   </div>
 );
-

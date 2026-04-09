@@ -120,9 +120,23 @@ export type MatchSimulationResult = {
   postMatchEffects: PostMatchEffects;
 };
 
+export type MatchEventFeed = {
+  mode: "post-match";
+  isLive: boolean;
+  availableModes: Array<"post-match" | "stepwise" | "live">;
+  events: MatchEvent[];
+};
+
+export type MatchDetail = {
+  id: string;
+  fixtureId: string;
+  playedAt: string;
+  result: MatchSimulationResult;
+  eventFeed: MatchEventFeed;
+};
+
 export type PositionFit = {
   playerId: string;
   position: PlayerPosition;
   fit: number;
 };
-

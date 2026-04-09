@@ -20,6 +20,6 @@ export const tacticalProfileSchema = z.object({
       position: z.enum(["GK", "RB", "CB", "LB", "DM", "CM", "AM", "RW", "LW", "ST"]),
       role: z.string()
     })
-  )
+  ),
+  benchPlayerIds: z.array(z.string())
 });
-

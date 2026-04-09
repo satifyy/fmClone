@@ -17,6 +17,7 @@ const createPlayer = (id: string, clubId: string, role: string, positions: Playe
   role,
   potential: 75,
   traits: [],
+  squadStatus: "starters",
   condition: {
     morale: 70,
     chemistry: 65,
@@ -46,6 +47,58 @@ const createPlayer = (id: string, clubId: string, role: string, positions: Playe
     aerialReach: positions.includes("GK") ? 13 : undefined,
     oneOnOnes: positions.includes("GK") ? 13 : undefined,
     kicking: positions.includes("GK") ? 13 : undefined
+  },
+  marketValue: {
+    amount: 1_250_000,
+    currency: "USD",
+    trend: "steady",
+    confidence: 80
+  },
+  recentForm: {
+    score: 72,
+    trend: "steady",
+    summary: "Fixture data is stable for the simulation test.",
+    recentRatings: [6.8, 7.0, 7.1],
+    minutes: 270,
+    goalContributions: positions.includes("ST") ? 2 : 0,
+    cleanSheets: positions.includes("GK") || positions.includes("CB") ? 1 : 0
+  },
+  contract: {
+    expiresOn: "2028-06-30",
+    yearsRemaining: 2,
+    weeklyWage: 12_000,
+    squadStatus: "regular starter"
+  },
+  roleFit: {
+    score: 80,
+    tacticalRole: role,
+    summary: "Test fixture role fit."
+  },
+  development: {
+    trajectory: "steady",
+    trend: "steady",
+    recentGrowth: 1.2,
+    ceiling: 79,
+    summary: "Stable development curve for tests."
+  },
+  seasonStats: {
+    appearances: 3,
+    starts: 3,
+    minutes: 270,
+    goals: positions.includes("ST") ? 2 : 0,
+    assists: positions.some((position) => ["RW", "LW", "CM"].includes(position)) ? 1 : 0,
+    cleanSheets: positions.includes("GK") || positions.includes("CB") ? 1 : 0,
+    averageRating: 7.0
+  },
+  history: [],
+  injuries: [],
+  scouting: {
+    scope: "full",
+    confidence: 100,
+    lastUpdated: "2026-08-08T00:00:00.000Z",
+    summary: "Complete internal knowledge for simulation tests.",
+    knownStrengths: ["Baseline consistency"],
+    unknowns: []
   }
 });
 

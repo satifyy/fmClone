@@ -1,7 +1,9 @@
+export * from "./analytics";
 export * from "./club";
 export * from "./league";
 export * from "./match";
 export * from "./player";
+export * from "./recruitment";
 export * from "./save";
 export * from "./tactics";
-
+export * from "./training";

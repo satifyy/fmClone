@@ -7,6 +7,7 @@ export const analyticsRoutes: FastifyPluginAsync = async (app) => {
   app.get("/analytics/club/:id", async (request, reply) => {
     const params = z.object({ id: z.string() }).parse(request.params);
     const dashboard = worldStore.getClubDashboard(params.id);
+    const detail = worldStore.getClubDetail(params.id);
     if (!dashboard) {
       reply.code(404);
       return { message: "Club not found" };
@@ -14,7 +15,11 @@ export const analyticsRoutes: FastifyPluginAsync = async (app) => {
 
     return {
       dashboard,
-      standingsPosition: worldStore.getStandings().findIndex((row) => row.clubId === params.id) + 1
+      standingsPosition: worldStore.getStandings().findIndex((row) => row.clubId === params.id) + 1,
+      recentResults: detail?.recentResults ?? [],
+      boardExpectation: detail?.club.boardExpectation,
+      financialStatus: detail?.financialStatus,
+      squadOverview: detail?.squadOverview
     };
   });
 
@@ -29,7 +34,11 @@ export const analyticsRoutes: FastifyPluginAsync = async (app) => {
     return {
       playerId: player.id,
       expectedGrowth: Number((player.potential * 0.08).toFixed(1)),
-      riskScore: player.condition.injuryRisk + player.condition.fatigue * 0.2
+      riskScore: player.condition.injuryRisk + player.condition.fatigue * 0.2,
+      seasonStats: player.seasonStats,
+      recentForm: player.recentForm,
+      contract: player.contract,
+      scouting: player.scouting
     };
   });
 
@@ -46,8 +55,27 @@ export const analyticsRoutes: FastifyPluginAsync = async (app) => {
       tacticalFit: Number(
         ((tactics.instructions.pressingIntensity + tactics.instructions.tempo + tactics.instructions.width) / 3).toFixed(1)
       ),
-      shape: tactics.formation
+      shape: tactics.formation,
+      instructions: tactics.instructions,
+      summary: worldStore.getTacticsBoard(params.clubId)?.summary
     };
+  });
+
+  app.get("/analytics/season/summary", async (request, reply) => {
+    const query = z.object({ saveId: z.string().optional(), seasonId: z.string().optional() }).parse(request.query);
+    const saveId = query.saveId ?? worldStore.getActiveSave()?.id;
+    if (!saveId) {
+      reply.code(404);
+      return { message: "Active save not found" };
+    }
+
+    const payload = worldStore.getSeasonAnalytics(saveId, query.seasonId);
+    if (!payload) {
+      reply.code(404);
+      return { message: "Season analytics not found" };
+    }
+
+    return payload;
   });
 };
 

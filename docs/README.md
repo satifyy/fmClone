@@ -12,6 +12,7 @@ This folder is the primary documentation set for the FM Clone monorepo.
 - [data-model.md](./data-model.md): current persistence approach and target Prisma model
 - [frontend.md](./frontend.md): web app structure and UI direction
 - [testing.md](./testing.md): current checks and recommended coverage growth
+- [changes.md](./changes.md): outstanding implementation work found from current changes
 - [roadmap.md](./roadmap.md): phased implementation priorities from scaffold to fuller v1
 
 ## Current state
@@ -24,4 +25,3 @@ The repo is scaffolded and runnable, but it is not feature-complete yet.
 - Prisma schema exists, but the API currently uses an in-memory world store rather than database-backed repositories
 
 Read the docs with that distinction in mind: some pages describe what is implemented now, and some describe the intended target architecture already reflected by the scaffold.
-
