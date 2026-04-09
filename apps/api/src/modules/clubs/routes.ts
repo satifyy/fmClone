@@ -82,7 +82,15 @@ export const clubsRoutes: FastifyPluginAsync = async (app) => {
     const params = z.object({ id: z.string() }).parse(request.params);
     const body = z
       .object({
-        action: z.enum(["request-investment", "commercial-push", "trim-wage-bill"]),
+        action: z.enum([
+          "request-investment",
+          "commercial-push",
+          "trim-wage-bill",
+          "take-loan",
+          "pay-debt",
+          "sign-sponsorship",
+          "viral-campaign"
+        ]),
         saveId: z.string().optional()
       })
       .parse(request.body);
