@@ -183,6 +183,12 @@ Each reacts to different systems
 This aligns with your “finance mechanic history” already tracked
 
 
+- there is no match report option to see who scored who assisted, match ratings etc
+
+- when we open the fixtures, it should show only our teams fixtures, and the calender should have a actual calender on the screen not just a list like its currently 
+
+- 
+
 ## Notes
 
 - Previous implementation checklist has been completed and cleared.
