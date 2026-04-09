@@ -11,9 +11,11 @@ import { playersRoutes } from "./modules/players/routes";
 import { savesRoutes } from "./modules/saves/routes";
 import { scoutingRoutes } from "./modules/scouting/routes";
 import { seasonsRoutes } from "./modules/seasons/routes";
+import { staffRoutes } from "./modules/staff/routes";
 import { tacticsRoutes } from "./modules/tactics/routes";
 import { trainingRoutes } from "./modules/training/routes";
 import { transfersRoutes } from "./modules/transfers/routes";
+import { youthRoutes } from "./modules/youth/routes";
 
 export const buildApp = () => {
   const app = Fastify({ logger: true });
@@ -34,6 +36,8 @@ export const buildApp = () => {
   app.register(transfersRoutes);
   app.register(analyticsRoutes);
   app.register(devtoolsRoutes);
+  app.register(staffRoutes);
+  app.register(youthRoutes);
 
   return app;
 };

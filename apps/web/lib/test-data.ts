@@ -39,6 +39,7 @@ type ClubSeed = {
   boardExpectation: string;
   userControlled: boolean;
   reputation: number;
+  digital: Club["digital"];
   finances: Club["finances"];
   facilities: number;
   coaching: number;
@@ -54,7 +55,8 @@ const clubsSeed: ClubSeed[] = [
     boardExpectation: "Reach playoffs",
     userControlled: true,
     reputation: 66,
-    finances: { balance: 12_500_000, wageBudget: 230_000, transferBudget: 4_500_000 },
+    digital: { followers: 125_000, engagementRate: 14 },
+    finances: { balance: 12_500_000, wageBudget: 230_000, transferBudget: 4_500_000, debt: 8_000_000 },
     facilities: 68,
     coaching: 70,
     academy: 64
@@ -67,7 +69,8 @@ const clubsSeed: ClubSeed[] = [
     boardExpectation: "Top half",
     userControlled: false,
     reputation: 64,
-    finances: { balance: 10_400_000, wageBudget: 215_000, transferBudget: 3_400_000 },
+    digital: { followers: 64_000, engagementRate: 10 },
+    finances: { balance: 10_400_000, wageBudget: 215_000, transferBudget: 3_400_000, debt: 5_000_000 },
     facilities: 63,
     coaching: 65,
     academy: 60
@@ -80,7 +83,8 @@ const clubsSeed: ClubSeed[] = [
     boardExpectation: "Avoid bottom two",
     userControlled: false,
     reputation: 61,
-    finances: { balance: 8_000_000, wageBudget: 184_000, transferBudget: 2_100_000 },
+    digital: { followers: 41_000, engagementRate: 18 },
+    finances: { balance: 8_000_000, wageBudget: 184_000, transferBudget: 2_100_000, debt: 2_000_000 },
     facilities: 58,
     coaching: 61,
     academy: 62
@@ -93,7 +97,8 @@ const clubsSeed: ClubSeed[] = [
     boardExpectation: "Challenge for title",
     userControlled: false,
     reputation: 69,
-    finances: { balance: 14_300_000, wageBudget: 260_000, transferBudget: 5_800_000 },
+    digital: { followers: 169_000, engagementRate: 11 },
+    finances: { balance: 14_300_000, wageBudget: 260_000, transferBudget: 5_800_000, debt: 0 },
     facilities: 71,
     coaching: 72,
     academy: 67
@@ -249,6 +254,7 @@ function buildClub(seed: ClubSeed): Club {
     name: seed.name,
     shortName: seed.shortName,
     reputation: seed.reputation,
+    digital: seed.digital,
     finances: seed.finances,
     facilities: seed.facilities,
     coaching: seed.coaching,
@@ -341,7 +347,8 @@ function buildPlayer(club: Club, template: (typeof playerTemplates)[number], tem
       amount: marketValue,
       currency: "USD",
       trend: random() > 0.6 ? "rising" : random() < 0.25 ? "falling" : "steady",
-      confidence: clamp(66 + appearances, 68, 92)
+      confidence: clamp(66 + appearances, 68, 92),
+      modifiers: { base: marketValue, hype: 1, form: 1, ageCurve: 1 }
     },
     recentForm: {
       score: clamp(Math.round(averageRating * 10), 60, 86),
@@ -1229,9 +1236,10 @@ export const seasonAnalyticsPayload: SeasonAnalyticsPayload = {
 export const clubFinanceBoardPayload: ClubFinanceBoardPayload = {
   clubId,
   finances: {
-    balance: 12_500_000,
-    transferBudget: 4_500_000,
-    wageBudget: 230_000
+    balance: 12500000,
+    transferBudget: 4500000,
+    wageBudget: 230000,
+    debt: 8000000
   },
   boardConfidence: {
     score: 74,

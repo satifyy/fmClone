@@ -130,7 +130,8 @@ const buildPlayerMeta = ({
     amount: value,
     currency: "USD" as const,
     trend: "rising" as const,
-    confidence: 82
+    confidence: 82,
+    modifiers: { base: value, hype: 1, form: 1, ageCurve: 1 }
   },
   recentForm: {
     score: formScore,
@@ -198,10 +199,12 @@ export const dashboard: ClubDashboard = {
     name: clubs["club-harbor"].name,
     shortName: clubs["club-harbor"].shortName,
     reputation: 66,
+    digital: { followers: 125_000, engagementRate: 14 },
     finances: {
       balance: 12500000,
       wageBudget: 230000,
-      transferBudget: 4500000
+      transferBudget: 4500000,
+      debt: 8_000_000
     },
     facilities: 68,
     coaching: 70,

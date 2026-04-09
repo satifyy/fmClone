@@ -5,5 +5,8 @@ export * from "./match";
 export * from "./player";
 export * from "./recruitment";
 export * from "./save";
+export * from "./staff";
 export * from "./tactics";
 export * from "./training";
+export * from "./youth";
+export * from "./finance";

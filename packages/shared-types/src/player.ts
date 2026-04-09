@@ -49,6 +49,12 @@ export type PlayerValueSnapshot = {
   currency: "USD";
   trend: "rising" | "steady" | "falling";
   confidence: number;
+  modifiers: {
+    base: number;
+    hype: number; // multiplier
+    form: number; // multiplier
+    ageCurve: number; // multiplier
+  };
 };
 
 export type PlayerFormSnapshot = {

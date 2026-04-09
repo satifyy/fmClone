@@ -11,10 +11,15 @@ export type Club = {
   name: string;
   shortName: string;
   reputation: number;
+  digital: {
+    followers: number;
+    engagementRate: number; // 0 to 100
+  };
   finances: {
     balance: number;
     wageBudget: number;
     transferBudget: number;
+    debt: number; // For FFP & Loans limit tracking
   };
   facilities: number;
   coaching: number;
@@ -65,7 +70,7 @@ export type LongTermFinancialPlan = {
   risks: string[];
 };
 
-export type FinanceMechanicAction = "request-investment" | "commercial-push" | "trim-wage-bill";
+export type FinanceMechanicAction = "request-investment" | "commercial-push" | "trim-wage-bill" | "take-loan" | "pay-debt" | "sign-sponsorship" | "viral-campaign";
 
 export type FinanceMechanicOutcome = {
   id: string;
@@ -80,6 +85,7 @@ export type FinanceMechanicOutcome = {
 
 export type ClubFinanceBoardPayload = {
   clubId: string;
+  digital?: Club["digital"];
   finances: Club["finances"];
   boardConfidence: ClubBoardConfidence;
   ownership: ClubOwnershipProfile;

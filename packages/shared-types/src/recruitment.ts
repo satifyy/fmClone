@@ -70,8 +70,8 @@ export type PlayerKnowledge = {
   familiarity: number;
   reportQuality: number;
   fitScore: number;
-  estimatedMarketValue: number;
-  wageEstimate: number;
+  estimatedMarketValueRange: [number, number]; // e.g. [5000000, 10000000]
+  wageEstimateRange: [number, number];
   recommendation: string;
   strengths: string[];
   risks: string[];

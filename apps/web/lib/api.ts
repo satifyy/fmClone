@@ -20,10 +20,14 @@ import type {
   SaveDashboardPayload,
   SeasonAnalyticsPayload,
   SeasonArchiveSummary,
+  StaffDepartmentPayload,
+  StaffActionResult,
   TacticalBoardDto,
   TacticsUpdateRequest,
   TransferCenterPayload,
-  TrainingPlan
+  TrainingPlan,
+  YouthAcademyPayload,
+  YouthPlayerActionResult
 } from "@fm/shared-types";
 
 import {
@@ -329,4 +333,56 @@ export async function getTransferCenter(clubId = defaultClubId): Promise<Transfe
 
 export async function getScoutingPage(saveId = defaultSaveId): Promise<ScoutingPagePayload> {
   return apiFetch<ScoutingPagePayload>(`/saves/${saveId}/scouting`);
+}
+
+export async function getStaffDepartment(saveId = defaultSaveId): Promise<StaffDepartmentPayload | null> {
+  try {
+    return await apiFetch<StaffDepartmentPayload>(`/saves/${saveId}/staff`);
+  } catch {
+    return null;
+  }
+}
+
+export async function staffAction(
+  action: "hire" | "sack",
+  staffId: string,
+  saveId = defaultSaveId
+): Promise<StaffActionResult> {
+  const response = await fetch(
+    buildApiUrl(`/saves/${saveId}/staff/${staffId}/${action}`, browserApiBaseUrl),
+    { method: "POST" }
+  );
+
+  if (!response.ok) {
+    const failure = (await response.json().catch(() => null)) as { message?: string } | null;
+    throw new Error(failure?.message ?? `Staff ${action} action failed`);
+  }
+
+  return (await response.json()) as StaffActionResult;
+}
+
+export async function getYouthAcademy(saveId = defaultSaveId): Promise<YouthAcademyPayload | null> {
+  try {
+    return await apiFetch<YouthAcademyPayload>(`/saves/${saveId}/youth`);
+  } catch {
+    return null;
+  }
+}
+
+export async function youthAction(
+  action: "promote" | "sell",
+  youthId: string,
+  saveId = defaultSaveId
+): Promise<YouthPlayerActionResult> {
+  const response = await fetch(
+    buildApiUrl(`/saves/${saveId}/youth/${youthId}/${action}`, browserApiBaseUrl),
+    { method: "POST" }
+  );
+
+  if (!response.ok) {
+    const failure = (await response.json().catch(() => null)) as { message?: string } | null;
+    throw new Error(failure?.message ?? `Youth ${action} action failed`);
+  }
+
+  return (await response.json()) as YouthPlayerActionResult;
 }

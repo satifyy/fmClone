@@ -63,7 +63,15 @@ import type {
   TransferCenterItem,
   TransferCenterPayload,
   TransferNegotiation,
-  MentionTarget
+  MentionTarget,
+  StaffMember,
+  StaffRole,
+  StaffPersonality,
+  StaffDepartmentPayload,
+  StaffActionResult,
+  YouthPlayer,
+  YouthAcademyPayload,
+  YouthPlayerActionResult
 } from "@fm/shared-types";
 
 import { simulateMatch } from "@fm/simulation";
@@ -127,9 +135,13 @@ const lastNames = [
 ];
 
 const financeMechanicLabels: Record<FinanceMechanicAction, string> = {
-  "request-investment": "Request owner investment",
-  "commercial-push": "Run commercial campaign",
-  "trim-wage-bill": "Trim wage bill"
+  "request-investment": "Investment Request",
+  "commercial-push": "Commercial Revenue Push",
+  "trim-wage-bill": "Cost Control Strategy",
+  "take-loan": "Debt Financing (Loan)",
+  "pay-debt": "Debt Down-Payment",
+  "sign-sponsorship": "Corporate Sponsorship Signed",
+  "viral-campaign": "Digital Virality Campaign"
 };
 
 const harborResultEvents: MatchEvent[] = [
@@ -216,6 +228,8 @@ type World = {
   playerInteractions: PlayerInteractionRecord[];
   financeMechanics: Record<string, FinanceMechanicOutcome[]>;
   boardConfidenceModifiers: Record<string, number>;
+  staff: StaffMember[];
+  youthPlayers: YouthPlayer[];
 };
 
 type ClubProfileSeed = {
@@ -232,54 +246,79 @@ type ClubProfileSeed = {
   history: ClubDetail["history"];
 };
 
-const leagueId = "coastal-championship";
-const secondaryLeagueId = "frontier-union";
+const tier1Id = "tier-1-premier";
+const tier2Id = "tier-2-champ";
+const tier3Id = "tier-3-league-one";
 
-const leagueZones: LeagueZoneDefinition[] = [
+const defaultLeagueZones: LeagueZoneDefinition[] = [
   {
     type: "promotion",
-    label: "Automatic promotion",
+    label: "Champions League",
     start: 1,
-    end: 1,
-    description: "Top club is promoted automatically."
+    end: 4,
+    description: "Top 4 qualify for Champions League"
   },
   {
     type: "promotion-playoff",
-    label: "Promotion playoff",
-    start: 2,
-    end: 2,
-    description: "Second place enters the promotion playoff."
+    label: "Europa League",
+    start: 5,
+    end: 6,
+    description: "5th and 6th qualify for Europa League"
   },
   {
     type: "relegation",
     label: "Relegation",
-    start: 4,
-    end: 4,
-    description: "Bottom club is relegated."
+    start: 18,
+    end: 20,
+    description: "Bottom 3 are relegated"
   }
 ];
 
-const secondaryLeagueZones: LeagueZoneDefinition[] = [
+const promotionLeagueZones: LeagueZoneDefinition[] = [
   {
-    type: "promotion-playoff",
-    label: "Title playoff",
+    type: "promotion",
+    label: "Automatic Promotion",
     start: 1,
     end: 2,
-    description: "Top two clubs enter a title playoff round."
+    description: "Top 2 are promoted automatically"
   },
   {
-    type: "midtable",
-    label: "Midtable",
+    type: "promotion-playoff",
+    label: "Playoffs",
     start: 3,
-    end: 3,
-    description: "Stable midtable finish."
+    end: 6,
+    description: "3rd to 6th enter promotion playoffs"
   },
   {
     type: "relegation",
-    label: "Drop zone",
-    start: 4,
-    end: 4,
-    description: "Bottom club is relegated."
+    label: "Relegation",
+    start: 18,
+    end: 20,
+    description: "Bottom 3 are relegated"
+  }
+];
+
+const tier3LeagueZones: LeagueZoneDefinition[] = [
+  {
+    type: "promotion",
+    label: "Automatic Promotion",
+    start: 1,
+    end: 2,
+    description: "Top 2 are promoted automatically"
+  },
+  {
+    type: "promotion-playoff",
+    label: "Playoffs",
+    start: 3,
+    end: 6,
+    description: "3rd to 6th enter promotion playoffs"
+  },
+  {
+    type: "relegation",
+    label: "Relegation",
+    start: 17,
+    end: 20,
+    description: "Bottom 4 are relegated"
   }
 ];
 
@@ -294,55 +333,38 @@ const leagueDirectory: Record<
     zones: LeagueZoneDefinition[];
   }
 > = {
-  [leagueId]: {
-    id: leagueId,
-    name: "Coastal Championship",
-    country: "United States",
+  [tier1Id]: {
+    id: tier1Id,
+    name: "Premier Division",
+    country: "England",
+    tier: 1,
+    rules: [
+      { title: "Points", detail: "Three points for a win, one for a draw, none for a loss." },
+      { title: "Tiebreakers", detail: "Positions are split by points, then goal difference, then goals scored." }
+    ],
+    zones: defaultLeagueZones
+  },
+  [tier2Id]: {
+    id: tier2Id,
+    name: "Championship",
+    country: "England",
     tier: 2,
     rules: [
-      {
-        title: "Points",
-        detail: "Three points for a win, one for a draw, none for a loss."
-      },
-      {
-        title: "Tiebreakers",
-        detail: "Positions are split by points, then goal difference, then goals scored."
-      },
-      {
-        title: "Promotion",
-        detail: "1st is promoted automatically and 2nd enters a promotion playoff."
-      },
-      {
-        title: "Relegation",
-        detail: "4th is relegated at the end of the season."
-      }
+      { title: "Points", detail: "Three points for a win, one for a draw." },
+      { title: "Tiebreakers", detail: "Goal difference determines split." }
     ],
-    zones: leagueZones
+    zones: promotionLeagueZones
   },
-  [secondaryLeagueId]: {
-    id: secondaryLeagueId,
-    name: "Frontier Union League",
-    country: "United States",
+  [tier3Id]: {
+    id: tier3Id,
+    name: "League One",
+    country: "England",
     tier: 3,
     rules: [
-      {
-        title: "Points",
-        detail: "Three points for a win, one for a draw, none for a loss."
-      },
-      {
-        title: "Tiebreakers",
-        detail: "Positions are split by points, then goals scored, then head-to-head."
-      },
-      {
-        title: "Playoff",
-        detail: "Top two clubs move into an end-of-season playoff final."
-      },
-      {
-        title: "Relegation",
-        detail: "Bottom club drops one tier."
-      }
+      { title: "Points", detail: "Three points for a win, one for a draw." },
+      { title: "Tiebreakers", detail: "Goal difference determines split." }
     ],
-    zones: secondaryLeagueZones
+    zones: tier3LeagueZones
   }
 };
 
@@ -605,13 +627,22 @@ const calculateMarketValue = (
     player.condition.fatigue / 420;
   const clubFactor = 0.78 + club.reputation / 100;
   const formFactor = 0.92 + recentForm.score / 500 + seasonStats.averageRating / 20;
-  const rawValue = abilityScore * abilityScore * 2_650 * ageFactor * growthFactor * conditionFactor * clubFactor * formFactor;
+  const socialHype = club.digital ? 1 + (Math.log10(Math.max(club.digital.followers, 1000)) - 3) * 0.05 : 1.0;
+  
+  const baseModifier = abilityScore * abilityScore * 2_700 * growthFactor * conditionFactor * clubFactor;
+  const rawValue = baseModifier * ageFactor * formFactor * socialHype;
 
   return {
     amount: Math.max(250_000, roundToNearest(rawValue, 25_000)),
     currency: "USD",
     trend: recentForm.trend === "up" ? "rising" : recentForm.trend === "down" ? "falling" : "steady",
-    confidence: clamp(Math.round(60 + seasonStats.appearances * 0.8), 55, 92)
+    confidence: clamp(Math.round(60 + seasonStats.appearances * 0.8), 55, 92),
+    modifiers: {
+      base: baseModifier,
+      hype: socialHype,
+      form: formFactor,
+      ageCurve: ageFactor
+    }
   };
 };
 
@@ -1162,67 +1193,198 @@ const createNotification = (
   actionType: actionType ?? (actionHref ? "navigate" : "none")
 });
 
+const makeStaffAttrs = (
+  coaching: number, motivation: number, tactics: number,
+  fitness: number, youth: number, scouting: number, data: number
+) => ({ coaching, motivation, tactics, fitness, youthDevelopment: youth, scoutingJudgement: scouting, dataAnalysis: data });
+
+const createStaffMember = (
+  id: string, saveId: string, clubId: string | null,
+  name: string, age: number, role: StaffRole, personality: StaffPersonality,
+  attrs: ReturnType<typeof makeStaffAttrs>, happiness: number, weeklyWage: number, yearsLeft: number
+): StaffMember => ({
+  id,
+  saveId,
+  clubId,
+  name,
+  age,
+  nationality: "Fictionland",
+  role,
+  personality,
+  attributes: attrs,
+  happiness,
+  volatility: 8 + (Math.round(Math.random() * 8) * (personality === "Charismatic" ? 1.5 : 1)),
+  upsideCap: 80 + (attrs.motivation * 0.5) + (attrs.scoutingJudgement * 0.5),
+  contract: {
+    weeklyWage,
+    expiresOn: `${2026 + Math.ceil(yearsLeft)}-06-30`,
+    yearsRemaining: yearsLeft
+  }
+});
+
+const createInitialStaff = (saveId: string): StaffMember[] => {
+  const harbor = "club-harbor";
+  return [
+    // ── Harbor Athletic staff (clubId = harbor) ──────────────────────────
+    createStaffMember("staff-haa-hc", saveId, harbor, "Marcus Reyes", 49, "Head Coach", "Tactician",
+      makeStaffAttrs(16, 15, 17, 13, 12, 11, 12), 72, 4_800, 2),
+    createStaffMember("staff-haa-ac", saveId, harbor, "Carla Dahl", 42, "Assistant Coach", "Motivator",
+      makeStaffAttrs(13, 17, 13, 14, 14, 10, 11), 68, 2_600, 1.5),
+    createStaffMember("staff-haa-fc", saveId, harbor, "Remi Ola", 38, "Fitness Coach", "Methodical",
+      makeStaffAttrs(10, 12, 9, 18, 13, 9, 14), 75, 1_900, 2),
+    createStaffMember("staff-haa-gk", saveId, harbor, "Jakub Hora", 44, "Goalkeeper Coach", "Developer",
+      makeStaffAttrs(14, 11, 12, 11, 15, 10, 10), 65, 1_700, 1),
+    createStaffMember("staff-haa-sd", saveId, harbor, "Priya Nair", 36, "Sports Director", "Charismatic",
+      makeStaffAttrs(11, 13, 11, 10, 11, 15, 16), 70, 3_200, 2.5),
+
+    // ── Free agents / hiring pool (clubId = null) ────────────────────────
+    createStaffMember("staff-fa-1", saveId, null, "Anton Vance", 45, "Assistant Coach", "Disciplinarian",
+      makeStaffAttrs(14, 14, 15, 12, 11, 10, 11), 60, 2_200, 1),
+    createStaffMember("staff-fa-2", saveId, null, "Bianca Ferri", 39, "Fitness Coach", "Methodical",
+      makeStaffAttrs(9, 11, 10, 17, 14, 9, 15), 64, 1_600, 1),
+    createStaffMember("staff-fa-3", saveId, null, "Elias Jonn", 33, "Data Analyst", "Methodical",
+      makeStaffAttrs(9, 10, 13, 9, 11, 12, 18), 62, 1_400, 1),
+    createStaffMember("staff-fa-4", saveId, null, "Tomas Ruiz", 51, "Head Coach", "Motivator",
+      makeStaffAttrs(15, 17, 14, 12, 13, 11, 10), 58, 5_500, 1),
+    createStaffMember("staff-fa-5", saveId, null, "Kemi Adeyemi", 41, "Scout Chief", "Tactician",
+      makeStaffAttrs(10, 11, 14, 10, 12, 17, 13), 66, 2_800, 1),
+    createStaffMember("staff-fa-6", saveId, null, "Marco Del", 37, "Goalkeeper Coach", "Developer",
+      makeStaffAttrs(13, 12, 11, 12, 16, 9, 10), 63, 1_500, 1)
+  ];
+};
+
+const youthFirstNames = ["Zaki", "Finn", "Eli", "Rio", "Cael", "Jude", "Theo", "Axel", "Lex", "Hugo", "Sol", "Nico", "Milo", "Kofi", "Arlo", "Remi", "Lior", "Noa", "Dani", "Saul"];
+const youthLastNames = ["Park", "Vidal", "Leon", "Crane", "Moss", "Holt", "Addo", "Yuki", "Banks", "Serin", "Osei", "Rowe", "Diaz", "Nkosi", "Bauer", "Patel", "Lin", "Johal", "Mack", "Cole"];
+const youthPositionPool: Player["positions"][] = [
+  ["GK"], ["CB"], ["CB"], ["LB"], ["RB"],
+  ["DM"], ["CM"], ["CM"], ["AM"],
+  ["LW"], ["RW"], ["ST"], ["ST"]
+];
+const youthPersonalities: YouthPlayer["personality"][] = ["ambitious", "professional", "laid-back", "maverick"];
+
+const createInitialYouthPlayers = (saveId: string, clubs: Club[]): YouthPlayer[] => {
+  const all: YouthPlayer[] = [];
+
+  for (const club of clubs) {
+    const academyRating = club.academy; // 1–100
+    const count = 12;
+
+    for (let i = 0; i < count; i++) {
+      const firstName = youthFirstNames[(i * 3 + club.reputation) % youthFirstNames.length]!;
+      const lastName = youthLastNames[(i * 2 + club.facilities) % youthLastNames.length]!;
+      const age = 15 + (i % 3);
+      const positions = youthPositionPool[i % youthPositionPool.length]!;
+
+      // Academy quality boosts ability/potential ceiling
+      const academyBonus = Math.round(academyRating / 10); // 0–10 bonus
+      const abilityBase = 6 + (i % 5); // 6–10
+      const ability = clamp(abilityBase + Math.round(academyBonus * 0.4), 5, 16);
+      const potential = clamp(ability + 2 + Math.round(academyBonus * 0.6) + (i % 4), 8, 20);
+      const personality = youthPersonalities[(i + club.reputation) % youthPersonalities.length]!;
+
+      all.push({
+        id: `youth-${club.shortName.toLowerCase()}-${i + 1}`,
+        saveId,
+        clubId: club.id,
+        firstName,
+        lastName,
+        age,
+        nationality: "Fictionland",
+        positions,
+        ability,
+        potential,
+        personality,
+        weeklyWage: 800 + i * 120 + academyBonus * 50,
+        status: "academy",
+        readiness: clamp(20 + academyBonus * 3 + (i % 5) * 4, 12, 72),
+        joinedOn: "2026-07-01"
+      });
+    }
+  }
+
+  return all;
+};
+
+const generateClubs = (userClubId: string, saveId: string): Club[] => {
+  const cities = ["London", "Manchester", "Liverpool", "Birmingham", "Leeds", "Sheffield", "Bristol", "Newcastle", "Sunderland", "Wolverhampton", "Nottingham", "Leicester", "Southampton", "Portsmouth", "Derby", "Stoke", "Coventry", "Reading", "Preston", "Hull"];
+  const prefixes = ["", "", "AFC ", "FC "];
+  const suffixes = [" United", " City", " Rovers", " Athletic", " Wanderers", " Town", " Albion", " Villa", " Forest", " North End"];
+  
+  const allClubs: Club[] = [];
+  
+  // Create Harbor Athletic first and assign to Tier 2 (Championship)
+  allClubs.push({
+    id: userClubId,
+    saveId,
+    name: "Harbor Athletic",
+    shortName: "HAA",
+    reputation: 66,
+    digital: { followers: 125_000, engagementRate: 14 },
+    finances: { balance: 12_500_000, wageBudget: 230_000, transferBudget: 4_500_000, debt: 8_000_000 },
+    facilities: 68,
+    coaching: 70,
+    academy: 64,
+    boardExpectation: "Reach playoffs",
+    styleIdentity: "pressing",
+    userControlled: true
+  });
+
+  // Generate 59 CPU clubs (19 for tier 2, 20 for tier 1, 20 for tier 3)
+  for (let i = 1; i < 60; i++) {
+    const tier = i < 20 ? 2 : i < 40 ? 1 : 3;
+    const city = cities[i % cities.length]!;
+    const prefix = prefixes[i % prefixes.length]!;
+    const suffix = suffixes[i % suffixes.length]!;
+    const name = `${prefix}${city}${suffix}`.trim();
+    const shortName = city.slice(0, 3).toUpperCase();
+    
+    // Tier 1 is highest reputation, Tier 3 is lowest
+    const repBase = tier === 1 ? 75 : tier === 2 ? 60 : 45;
+    const rep = repBase + (i % 15);
+    
+    const balance = tier === 1 ? 40_000_000 + (i * 2_000_000) : tier === 2 ? 8_000_000 + (i * 500_000) : 2_000_000 + (i * 100_000);
+    const wage = tier === 1 ? 800_000 + (i * 30_000) : tier === 2 ? 200_000 + (i * 10_000) : 60_000 + (i * 2_000);
+    const transfer = tier === 1 ? 15_000_000 + (i * 1_000_000) : tier === 2 ? 3_000_000 + (i * 200_000) : 500_000 + (i * 50_000);
+    
+    const facilities = clamp(rep - 5 + (i % 10), 30, 95);
+    const coaching = clamp(rep - 3 + (i % 8), 35, 95);
+    const academy = clamp(rep - 8 + (i % 12), 30, 90);
+
+    const expectations = tier === 1 ? ["Win title", "Top four", "Midtable", "Avoid relegation"] :
+                         tier === 2 ? ["Promotion", "Reach playoffs", "Midtable", "Survive"] :
+                         ["Win title", "Promotion", "Midtable", "Avoid relegation"];
+    const styles: Club["styleIdentity"][] = ["possession", "pressing", "counter", "balanced"];
+
+    allClubs.push({
+      id: `club-cpu-${i}`,
+      saveId,
+      name,
+      shortName,
+      reputation: rep,
+      digital: { followers: rep * rep * (i % 5 + 1) * 100, engagementRate: clamp(10 + (i % 25), 5, 80) },
+      finances: { balance, wageBudget: wage, transferBudget: transfer, debt: clamp(balance * 0.4, 0, 50_000_000) },
+      facilities,
+      coaching,
+      academy,
+      boardExpectation: expectations[i % 4]!,
+      styleIdentity: styles[i % 4]!,
+      userControlled: false
+    });
+  }
+
+  // Shuffle to randomize the clubs slightly
+  for (let i = allClubs.length - 1; i > 1; i--) {
+    const j = Math.floor(Math.random() * (i - 1)) + 1; // Don't shuffle the player club at 0
+    [allClubs[i], allClubs[j]] = [allClubs[j]!, allClubs[i]!];
+  }
+  
+  return allClubs;
+};
+
 const createInitialWorld = (): World => {
   const saveId = "save-alpha";
   const userClubId = "club-harbor";
-  const clubs: Club[] = [
-    {
-      id: userClubId,
-      saveId,
-      name: "Harbor Athletic",
-      shortName: "HAA",
-      reputation: 66,
-      finances: { balance: 12_500_000, wageBudget: 230_000, transferBudget: 4_500_000 },
-      facilities: 68,
-      coaching: 70,
-      academy: 64,
-      boardExpectation: "Reach playoffs",
-      styleIdentity: "pressing",
-      userControlled: true
-    },
-    {
-      id: "club-summit",
-      saveId,
-      name: "Summit City",
-      shortName: "SUM",
-      reputation: 64,
-      finances: { balance: 10_400_000, wageBudget: 215_000, transferBudget: 3_400_000 },
-      facilities: 63,
-      coaching: 65,
-      academy: 60,
-      boardExpectation: "Top half",
-      styleIdentity: "balanced",
-      userControlled: false
-    },
-    {
-      id: "club-riverside",
-      saveId,
-      name: "Riverside FC",
-      shortName: "RIV",
-      reputation: 61,
-      finances: { balance: 8_000_000, wageBudget: 184_000, transferBudget: 2_100_000 },
-      facilities: 58,
-      coaching: 61,
-      academy: 62,
-      boardExpectation: "Avoid bottom two",
-      styleIdentity: "counter",
-      userControlled: false
-    },
-    {
-      id: "club-ironvale",
-      saveId,
-      name: "Ironvale United",
-      shortName: "IRN",
-      reputation: 69,
-      finances: { balance: 14_300_000, wageBudget: 260_000, transferBudget: 5_800_000 },
-      facilities: 71,
-      coaching: 72,
-      academy: 67,
-      boardExpectation: "Challenge for title",
-      styleIdentity: "possession",
-      userControlled: false
-    }
-  ];
+  const clubs = generateClubs(userClubId, saveId);
 
   const squadTemplate: Array<[string, string, Player["positions"], number]> = [
     ["keeper-one", "Goalkeeper", ["GK"], 2],
@@ -1285,147 +1447,100 @@ const createInitialWorld = (): World => {
   }
 
   const currentSeasonId = "season-2026";
-  const fixtures: Fixture[] = [
-    {
-      id: "fx-1",
-      saveId,
-      seasonId: currentSeasonId,
-      competition: "league",
-      matchday: 1,
-      date: "2026-08-04",
-      homeClubId: "club-harbor",
-      awayClubId: "club-riverside",
-      status: "simulated"
-    },
-    {
-      id: "fx-2",
-      saveId,
-      seasonId: currentSeasonId,
-      competition: "league",
-      matchday: 1,
-      date: "2026-08-04",
-      homeClubId: "club-summit",
-      awayClubId: "club-ironvale",
-      status: "simulated"
-    },
-    {
-      id: "fx-3",
-      saveId,
-      seasonId: currentSeasonId,
-      competition: "league",
-      matchday: 2,
-      date: "2026-08-10",
-      homeClubId: "club-harbor",
-      awayClubId: "club-summit",
-      status: "scheduled"
-    },
-    {
-      id: "fx-4",
-      saveId,
-      seasonId: currentSeasonId,
-      competition: "league",
-      matchday: 2,
-      date: "2026-08-10",
-      homeClubId: "club-riverside",
-      awayClubId: "club-ironvale",
-      status: "scheduled"
-    },
-    {
-      id: "fx-5",
-      saveId,
-      seasonId: currentSeasonId,
-      competition: "league",
-      matchday: 3,
-      date: "2026-08-17",
-      homeClubId: "club-ironvale",
-      awayClubId: "club-harbor",
-      status: "locked"
-    },
-    {
-      id: "fx-6",
-      saveId,
-      seasonId: currentSeasonId,
-      competition: "league",
-      matchday: 3,
-      date: "2026-08-17",
-      homeClubId: "club-summit",
-      awayClubId: "club-riverside",
-      status: "locked"
-    },
-    {
-      id: "fx-7",
-      saveId,
-      seasonId: currentSeasonId,
-      competition: "cup",
-      matchday: 1,
-      date: "2026-08-21",
-      homeClubId: "club-harbor",
-      awayClubId: "club-ironvale",
-      status: "postponed"
-    },
-    {
-      id: "fx-8",
-      saveId,
-      seasonId: currentSeasonId,
-      competition: "cup",
-      matchday: 1,
-      date: "2026-08-21",
-      homeClubId: "club-summit",
-      awayClubId: "club-riverside",
-      status: "scheduled"
-    }
-  ];
+  const fixtures: Fixture[] = [];
 
-  const standings: StandingRow[] = [
-    {
-      clubId: "club-harbor",
-      clubName: "Harbor Athletic",
-      played: 1,
-      won: 1,
-      drawn: 0,
-      lost: 0,
-      goalsFor: 2,
-      goalsAgainst: 1,
-      goalDifference: 1,
-      points: 3
-    },
-    {
-      clubId: "club-ironvale",
-      clubName: "Ironvale United",
-      played: 1,
-      won: 1,
-      drawn: 0,
-      lost: 0,
-      goalsFor: 3,
-      goalsAgainst: 1,
-      goalDifference: 2,
-      points: 3
-    },
-    {
-      clubId: "club-riverside",
-      clubName: "Riverside FC",
-      played: 1,
-      won: 0,
-      drawn: 0,
-      lost: 1,
-      goalsFor: 1,
-      goalsAgainst: 2,
-      goalDifference: -1,
-      points: 0
-    },
-    {
-      clubId: "club-summit",
-      clubName: "Summit City",
-      played: 1,
-      won: 0,
-      drawn: 0,
-      lost: 1,
-      goalsFor: 1,
-      goalsAgainst: 3,
-      goalDifference: -2,
-      points: 0
+  // Sort clubs into their 3 divisions
+  const tier1Clubs = clubs.slice(20, 40).map(c => c.id);
+  const tier2Clubs = clubs.slice(0, 20).map(c => c.id);
+  const tier3Clubs = clubs.slice(40, 60).map(c => c.id);
+
+  const generateScheduleForLeague = (leagueTeams: string[]) => {
+    const teams = [...leagueTeams];
+    if (teams.length % 2 !== 0) teams.push("BYE");
+
+    const matchdays = teams.length - 1;
+    const halfSize = teams.length / 2;
+    const allMatchdays: Array<Array<[string, string]>> = [];
+
+    // First half of season
+    for (let day = 0; day < matchdays; day++) {
+      const dayMatches: Array<[string, string]> = [];
+      for (let i = 0; i < halfSize; i++) {
+        const home = teams[i]!;
+        const away = teams[teams.length - 1 - i]!;
+        if (home !== "BYE" && away !== "BYE") {
+          // alternate home/away
+          if (day % 2 === 0 && i === 0) {
+            dayMatches.push([away, home]);
+          } else {
+            dayMatches.push([home, away]);
+          }
+        }
+      }
+      allMatchdays.push(dayMatches);
+
+      // Rotate array, keeping index 0 fixed
+      const last = teams.pop()!;
+      teams.splice(1, 0, last);
     }
-  ];
+
+    // Second half of season (reverse fixtures)
+    const secondHalf: Array<Array<[string, string]>> = allMatchdays.map(day => day.map(([h, a]) => [a, h]));
+    
+    return [...allMatchdays, ...secondHalf];
+  };
+
+  const schedule1 = generateScheduleForLeague(tier1Clubs);
+  const schedule2 = generateScheduleForLeague(tier2Clubs);
+  const schedule3 = generateScheduleForLeague(tier3Clubs);
+
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const startTimestamp = new Date("2026-08-04T12:00:00Z").getTime();
+
+  let fixtureIdMap = 1;
+  const buildFixturesForSchedule = (schedule: Array<Array<[string, string]>>) => {
+    for (let matchdayIndex = 0; matchdayIndex < schedule.length; matchdayIndex++) {
+      const matchdayDate = new Date(startTimestamp + matchdayIndex * 7 * msPerDay).toISOString().slice(0, 10);
+      const matches = schedule[matchdayIndex]!;
+      for (const [homeId, awayId] of matches) {
+        fixtures.push({
+          id: `fx-${fixtureIdMap++}`,
+          saveId,
+          seasonId: currentSeasonId,
+          competition: "league",
+          matchday: matchdayIndex + 1,
+          date: matchdayDate,
+          homeClubId: homeId,
+          awayClubId: awayId,
+          status: "scheduled"
+        });
+      }
+    }
+  };
+
+  buildFixturesForSchedule(schedule1);
+  buildFixturesForSchedule(schedule2);
+  buildFixturesForSchedule(schedule3);
+
+  const standings: StandingRow[] = clubs.map((club) => {
+    let lid = "";
+    if (tier1Clubs.includes(club.id)) lid = tier1Id;
+    if (tier2Clubs.includes(club.id)) lid = tier2Id;
+    if (tier3Clubs.includes(club.id)) lid = tier3Id;
+    return {
+      leagueId: lid,
+      clubId: club.id,
+      clubName: club.name,
+      played: 0,
+      won: 0,
+      drawn: 0,
+      lost: 0,
+      goalsFor: 0,
+      goalsAgainst: 0,
+      goalDifference: 0,
+      points: 0
+    };
+  });
 
   const tactics = Object.fromEntries(
     clubs.map((club) => [
@@ -1508,11 +1623,11 @@ const createInitialWorld = (): World => {
   ];
 
   const externalTargets = [
-    players.find((player) => player.clubId === "club-summit" && player.positions.includes("RW")),
-    players.find((player) => player.clubId === "club-ironvale" && player.positions.includes("LB")),
-    players.find((player) => player.clubId === "club-riverside" && player.positions.includes("ST")),
-    players.find((player) => player.clubId === "club-riverside" && player.positions.includes("CM")),
-    players.find((player) => player.clubId === "club-summit" && player.positions.includes("CB"))
+    players.find((player) => player.clubId !== userClubId && player.positions.includes("RW")),
+    players.find((player) => player.clubId !== userClubId && player.positions.includes("LB")),
+    players.find((player) => player.clubId !== userClubId && player.positions.includes("ST")),
+    players.find((player) => player.clubId !== userClubId && player.positions.includes("CM")),
+    players.find((player) => player.clubId !== userClubId && player.positions.includes("CB"))
   ].filter((player): player is Player => Boolean(player));
 
   const knowledgeConfigs: Array<{
@@ -1610,8 +1725,14 @@ const createInitialWorld = (): World => {
       familiarity: clamp(48 + assignedScouts.length * 11 + averageScoutScore / 4, 38, 94),
       reportQuality: clamp(averageScoutScore + assignedScouts.length * 3, 52, 95),
       fitScore: config.fitScore,
-      estimatedMarketValue: roundToNearest(config.player.marketValue.amount * (0.92 + averageScoutScore / 500), 25_000),
-      wageEstimate: roundToNearest(config.player.contract.weeklyWage * (1.08 + assignedScouts.length * 0.03), 500),
+      estimatedMarketValueRange: [
+        roundToNearest(config.player.marketValue.amount * (0.8 + averageScoutScore / 800), 25_000),
+        roundToNearest(config.player.marketValue.amount * (1.2 - averageScoutScore / 800), 25_000)
+      ],
+      wageEstimateRange: [
+        roundToNearest(config.player.contract.weeklyWage * (0.85 + assignedScouts.length * 0.05), 500),
+        roundToNearest(config.player.contract.weeklyWage * (1.15 - assignedScouts.length * 0.05), 500)
+      ],
       recommendation: config.recommendation,
       strengths: config.strengths,
       risks: config.risks,
@@ -2242,7 +2363,9 @@ const createInitialWorld = (): World => {
     contracts,
     playerInteractions: [],
     financeMechanics: {},
-    boardConfidenceModifiers: {}
+    boardConfidenceModifiers: {},
+    staff: createInitialStaff(saveId),
+    youthPlayers: createInitialYouthPlayers(saveId, clubs)
   };
 };
 
@@ -2259,7 +2382,9 @@ export class WorldStore {
       ...restored,
       playerInteractions: restored.playerInteractions ?? [],
       financeMechanics: restored.financeMechanics ?? {},
-      boardConfidenceModifiers: restored.boardConfidenceModifiers ?? {}
+      boardConfidenceModifiers: restored.boardConfidenceModifiers ?? {},
+      staff: restored.staff ?? createInitialStaff("save-alpha"),
+      youthPlayers: restored.youthPlayers ?? createInitialYouthPlayers("save-alpha", [])
     };
   }
 
@@ -2474,6 +2599,7 @@ export class WorldStore {
 
       this.advanceDay();
       this.recoverClubPlayers(club.id);
+      this.tickStaffHappiness(saveId, club.id);
     }
 
     if (action === "simulate-next-fixture") {
@@ -2518,13 +2644,204 @@ export class WorldStore {
     };
   }
 
-  getStandings(): StandingRow[] {
-    return this.enrichStandings(this.world.season.seasonId, this.world.standings);
+  // ─── Staff ────────────────────────────────────────────────────────────────
+
+  getStaffDepartment(saveId: string): StaffDepartmentPayload | undefined {
+    const club = this.getUserClubForSave(saveId);
+    if (!club) return undefined;
+
+    const clubStaff = this.world.staff.filter((s) => s.clubId === club.id && s.saveId === saveId);
+    const staffWagesUsed = clubStaff.reduce((sum, s) => sum + s.contract.weeklyWage, 0);
+    const staffWageBudget = Math.round(club.finances.wageBudget * 0.14); // 14% of player wage budget
+
+    // Pool of free agents available to hire
+    const availableToHire = this.world.staff
+      .filter((s) => s.clubId === null && s.saveId === saveId)
+      .slice(0, 8);
+
+    return {
+      clubId: club.id,
+      staffWageBudget,
+      staffWagesUsed,
+      staff: clubStaff,
+      availableToHire
+    };
   }
 
-  getLeagueMetadata(seasonId = this.world.season.seasonId, selectedLeagueId = leagueId): LeagueMetadata {
+  hireStaff(saveId: string, staffId: string): StaffActionResult | undefined {
+    const club = this.getUserClubForSave(saveId);
+    const member = this.world.staff.find((s) => s.id === staffId && s.saveId === saveId && s.clubId === null);
+    if (!club || !member) return undefined;
+
+    const dept = this.getStaffDepartment(saveId)!;
+    const budgetLeft = dept.staffWageBudget - dept.staffWagesUsed;
+    if (member.contract.weeklyWage > budgetLeft) {
+      return undefined; // over budget
+    }
+
+    member.clubId = club.id;
+
+    this.world.inbox.push(
+      createNotification(
+        saveId, club.id, "board", "low",
+        `${member.name} joined as ${member.role}`,
+        `${member.name} (${member.personality}) has signed a contract and joined the staff.`,
+        this.world.season.currentDate
+      )
+    );
+
+    this.persistWorld();
+    return { staff: member, message: `${member.name} has been hired as ${member.role}.`, department: this.getStaffDepartment(saveId)! };
+  }
+
+  sackStaff(saveId: string, staffId: string): StaffActionResult | undefined {
+    const club = this.getUserClubForSave(saveId);
+    const member = this.world.staff.find((s) => s.id === staffId && s.saveId === saveId && s.clubId === club?.id);
+    if (!club || !member) return undefined;
+
+    member.clubId = null; // release to free agent pool
+    member.happiness = clamp(member.happiness - 15, 0, 100); // sacking hurts morale
+
+    this.world.inbox.push(
+      createNotification(
+        saveId, club.id, "board", "medium",
+        `${member.name} was released`,
+        `${member.name} has left their role as ${member.role}. The wage slot has been freed.`,
+        this.world.season.currentDate
+      )
+    );
+
+    this.persistWorld();
+    return { staff: member, message: `${member.name} has been released from the club.`, department: this.getStaffDepartment(saveId)! };
+  }
+
+  private tickStaffHappiness(saveId: string, clubId: string): void {
+    const boardPressure = this.getBoardPressure(saveId);
+    const pressurePenalty = boardPressure.level === "critical" ? -3 : boardPressure.level === "elevated" ? -1 : 0;
+
+    const resigned: StaffMember[] = [];
+    for (const member of this.world.staff) {
+      if (member.clubId !== clubId || member.saveId !== saveId) continue;
+
+      // Slow natural drift: -0.5 to +0.3 per day based on board pressure
+      const drift = -0.5 + Math.random() * 0.8 + pressurePenalty;
+      member.happiness = clamp(Math.round(member.happiness + drift), 0, 100);
+
+      if (member.happiness < 20) {
+        resigned.push(member);
+      }
+    }
+
+    for (const member of resigned) {
+      member.clubId = null;
+      this.world.inbox.push(
+        createNotification(
+          saveId, clubId, "board", "high",
+          `${member.name} has resigned`,
+          `${member.name} has left their role as ${member.role} due to low morale. You should look to replace them.`,
+          this.world.season.currentDate
+        )
+      );
+    }
+  }
+
+  // ─── End Staff ────────────────────────────────────────────────────────────
+
+  // ─── Youth Academy ────────────────────────────────────────────────────────
+
+  getYouthAcademy(saveId: string): YouthAcademyPayload | undefined {
+    const club = this.getUserClubForSave(saveId);
+    if (!club) return undefined;
+
+    const players = this.world.youthPlayers.filter(
+      (y) => y.clubId === club.id && y.saveId === saveId && y.status === "academy"
+    );
+    const youthWagesUsed = players.reduce((sum, y) => sum + y.weeklyWage, 0);
+    const youthWageBudget = Math.round(club.finances.wageBudget * 0.08); // 8% of player wage budget
+
+    return {
+      clubId: club.id,
+      academyRating: club.academy,
+      youthWageBudget,
+      youthWagesUsed,
+      players
+    };
+  }
+
+  promoteYouthPlayer(saveId: string, youthId: string): YouthPlayerActionResult | undefined {
+    const club = this.getUserClubForSave(saveId);
+    const youth = this.world.youthPlayers.find(
+      (y) => y.id === youthId && y.saveId === saveId && y.clubId === club?.id && y.status === "academy"
+    );
+    if (!club || !youth) return undefined;
+
+    youth.status = "promoted";
+
+    this.world.inbox.push(
+      createNotification(
+        saveId, club.id, "board", "medium",
+        `${youth.firstName} ${youth.lastName} promoted to first team`,
+        `${youth.firstName} ${youth.lastName} (${youth.positions[0]}, Age ${youth.age}) has been promoted from the academy to the first-team squad.`,
+        this.world.season.currentDate
+      )
+    );
+
+    this.persistWorld();
+    return {
+      player: youth,
+      message: `${youth.firstName} ${youth.lastName} has been promoted to the first team.`,
+      academy: this.getYouthAcademy(saveId)!
+    };
+  }
+
+  sellYouthPlayer(saveId: string, youthId: string): YouthPlayerActionResult | undefined {
+    const club = this.getUserClubForSave(saveId);
+    const youth = this.world.youthPlayers.find(
+      (y) => y.id === youthId && y.saveId === saveId && y.clubId === club?.id && y.status === "academy"
+    );
+    if (!club || !youth) return undefined;
+
+    const sellFee = Math.round(youth.potential * youth.ability * 8_000);
+    youth.status = "sold";
+
+    club.finances.balance += sellFee;
+    club.finances.transferBudget += Math.round(sellFee * 0.6);
+
+    this.world.inbox.push(
+      createNotification(
+        saveId, club.id, "board", "low",
+        `${youth.firstName} ${youth.lastName} sold for $${(sellFee / 1000).toFixed(0)}k`,
+        `${youth.firstName} ${youth.lastName} has been sold to another club. Fee received: $${(sellFee / 1000).toFixed(0)}k.`,
+        this.world.season.currentDate
+      )
+    );
+
+    this.persistWorld();
+    return {
+      player: youth,
+      message: `${youth.firstName} ${youth.lastName} sold for $${(sellFee / 1000).toFixed(0)}k.`,
+      academy: this.getYouthAcademy(saveId)!
+    };
+  }
+
+  // ─── End Youth Academy ────────────────────────────────────────────────────
+
+  getStandings(): StandingRow[] {
+    // Get the user's club to see which league they're in
+    const userClub = this.getUserClubForSave(this.world.season.saveId);
+    let lid = tier2Id;
+    if (userClub) {
+      const row = this.world.standings.find(r => r.clubId === userClub.id);
+      if (row?.leagueId) lid = row.leagueId;
+    }
+    const leagueMeta = this.getLeagueMetadata(this.world.season.seasonId, lid);
+    const filteredStandings = this.world.standings.filter(s => s.leagueId === lid);
+    return this.enrichStandings(this.world.season.seasonId, filteredStandings, leagueMeta.zones);
+  }
+
+  getLeagueMetadata(seasonId = this.world.season.seasonId, selectedLeagueId = tier2Id): LeagueMetadata {
     const season = this.getSeasonArchiveDetail(seasonId);
-    const directoryEntry = leagueDirectory[selectedLeagueId] ?? leagueDirectory[leagueId]!;
+    const directoryEntry = leagueDirectory[selectedLeagueId] ?? leagueDirectory[tier2Id]!;
 
     return {
       id: directoryEntry.id,
@@ -2538,10 +2855,15 @@ export class WorldStore {
     };
   }
 
-  getLeagueStandings(seasonId = this.world.season.seasonId, selectedLeagueId = leagueId): LeagueStandingsPayload {
+  getLeagueStandings(seasonId = this.world.season.seasonId, selectedLeagueId = tier2Id): LeagueStandingsPayload {
     const season = this.getSeasonArchiveDetail(seasonId);
     const selectedSeason = season?.label ?? this.world.season.label;
-    const baseTable = seasonId === this.world.season.seasonId ? this.world.standings : season?.standings ?? this.world.standings;
+    const allTable = seasonId === this.world.season.seasonId ? this.world.standings : season?.standings ?? this.world.standings;
+    
+    // Filter to only the 20 clubs in the requested tier
+    const baseTable = allTable.filter((row) => row.leagueId === selectedLeagueId);
+
+    const leagueMeta = this.getLeagueMetadata(seasonId, selectedLeagueId);
 
     return {
       league: this.getLeagueMetadata(seasonId, selectedLeagueId),
@@ -2557,7 +2879,8 @@ export class WorldStore {
       selectedSeason,
       isHistorical: seasonId !== this.world.season.seasonId,
       summary: this.getLeagueSummary(seasonId, baseTable),
-      table: this.enrichStandings(seasonId, baseTable)
+      // enrichStandings correctly sorts the filtered list 1–20 and assigns zones
+      table: this.enrichStandings(seasonId, baseTable, leagueMeta.zones)
     };
   }
 
@@ -2568,7 +2891,8 @@ export class WorldStore {
       return undefined;
     }
 
-    const standingsPayload = this.getLeagueStandings(seasonId, leagueId);
+    const userTierId = this.world.standings.find(r => r.clubId === club.id)?.leagueId ?? tier2Id;
+    const standingsPayload = this.getLeagueStandings(seasonId, userTierId);
     const clubRow = standingsPayload.table.find((row) => row.clubId === club.id);
     if (!clubRow) {
       return undefined;
@@ -2654,6 +2978,7 @@ export class WorldStore {
 
     return {
       clubId,
+      digital: club.digital,
       finances: club.finances,
       boardConfidence,
       ownership: ownershipProfiles[clubId] ?? {
@@ -2730,6 +3055,60 @@ export class WorldStore {
       wageBudgetDelta = -12_000;
       boardDelta = 1;
       message = "Wage commitments were trimmed and short-term transfer liquidity improved.";
+    }
+
+    if (action === "take-loan") {
+      if (club.finances.debt < club.reputation * 300_000) {
+        balanceDelta = 2_500_000;
+        club.finances.debt += 2_500_000;
+        boardDelta = -2; // Board is slightly nervous about debt
+        message = "Secured a $2.5M loan from local creditors. Interest will accrue daily.";
+      } else {
+        boardDelta = -5;
+        message = "Creditors rejected the loan. Club debt is already at its leverage limit.";
+      }
+    }
+
+    if (action === "pay-debt") {
+      if (club.finances.balance >= 1_000_000 && club.finances.debt >= 1_000_000) {
+        balanceDelta = -1_000_000;
+        club.finances.debt -= 1_000_000;
+        boardDelta = 3;
+        message = "Paid down $1M of outstanding debt. The board appreciates the financial discipline.";
+      } else {
+        message = "Failed to pay debt. Ensure you have $1M in balance and the equivalent in outstanding debt.";
+      }
+    }
+
+    if (action === "sign-sponsorship") {
+      balanceDelta = 750_000;
+      transferBudgetDelta = 500_000;
+      if (club.digital) {
+        club.digital.engagementRate = Math.max(2, club.digital.engagementRate - 5);
+      }
+      boardDelta = 2;
+      message = "Signed a new corporate sponsor. Fans might not love it, but the injection of cash is real.";
+    }
+
+    if (action === "viral-campaign") {
+      balanceDelta = -200_000; // Costs money to run
+      if (club.finances.balance >= 200_000) {
+        if (club.digital) {
+          const success = Math.random() > 0.4;
+          if (success) {
+            club.digital.followers += 25_000;
+            club.digital.engagementRate = Math.min(95, club.digital.engagementRate + 15);
+            boardDelta = 4;
+            message = "The digital marketing campaign went viral! Huge gains in global tracking.";
+          } else {
+             boardDelta = -1;
+             message = "The campaign failed to find an audience. The PR money was wasted.";
+          }
+        }
+      } else {
+         message = "Not enough cash to run the campaign. Cost is $200k.";
+         balanceDelta = 0;
+      }
     }
 
     club.finances.balance = Math.max(0, Math.round(club.finances.balance + balanceDelta));
@@ -2830,10 +3209,15 @@ export class WorldStore {
 
   getClubDetail(clubId: string): ClubDetail | undefined {
     const club = this.getClub(clubId);
-    const profile = clubProfiles[clubId];
-    if (!club || !profile) {
+    if (!club) {
       return undefined;
     }
+    const profile = clubProfiles[clubId] ?? {
+      city: club.name.replace(/(FC|AFC|United|City|Rovers|Athletic|Wanderers|Town|Albion|Villa|Forest|North End)/ig, "").trim(),
+      stadium: { name: `${club.name} Stadium`, capacity: 15_000 + club.reputation * 500, builtYear: 1980 + (club.reputation % 30), condition: 75, pitchType: "grass", accent: "#303030" },
+      colors: { primary: "#ffffff", secondary: "#000000", accent: "#999999" },
+      history: []
+    };
 
     const squad = this.getClubSquad(clubId);
     const players = squad?.players ?? this.getClubPlayers(clubId);
@@ -2841,9 +3225,11 @@ export class WorldStore {
     const topScorer = [...players].sort((left, right) => right.seasonStats.goals - left.seasonStats.goals)[0];
     const topCreator = [...players].sort((left, right) => right.seasonStats.assists - left.seasonStats.assists)[0];
 
+    const clubLeagueId = this.world.standings.find((r) => r.clubId === clubId)?.leagueId ?? tier2Id;
+
     return {
       club,
-      leagueId,
+      leagueId: clubLeagueId,
       city: profile.city,
       stadium: profile.stadium,
       colors: profile.colors,
@@ -3451,6 +3837,34 @@ export class WorldStore {
     this.updateStandingRow(fixture.homeClubId, result.score.home, result.score.away);
     this.updateStandingRow(fixture.awayClubId, result.score.away, result.score.home);
 
+    const homeClub = this.getClub(fixture.homeClubId);
+    if (homeClub) {
+      // Calculate matchday revenue (Attendance based on reputation)
+      const baseAttendance = homeClub.reputation * 350;
+      const resultMultiplier = result.score.home > result.score.away ? 1.2 : result.score.home === result.score.away ? 1.0 : 0.85;
+      const matchdayRevenue = Math.round(baseAttendance * resultMultiplier * 45); // Avg $45 ticket/spend
+      
+      homeClub.finances.balance += matchdayRevenue;
+      
+      // Update social footing
+      if (homeClub.digital) {
+        const followerBoost = result.score.home > result.score.away ? 
+          Math.max(0, (result.score.home - result.score.away) * 1500) : 
+          result.score.home < result.score.away ? -800 : 200;
+        homeClub.digital.followers = Math.max(0, homeClub.digital.followers + followerBoost);
+        homeClub.digital.engagementRate = clamp(homeClub.digital.engagementRate + (result.score.home > result.score.away ? 2 : -1), 2, 95);
+      }
+    }
+
+    const awayClub = this.getClub(fixture.awayClubId);
+    if (awayClub && awayClub.digital) {
+      const followerBoost = result.score.away > result.score.home ? 
+        Math.max(0, (result.score.away - result.score.home) * 1500) : 
+        result.score.away < result.score.home ? -800 : 200;
+      awayClub.digital.followers = Math.max(0, awayClub.digital.followers + followerBoost);
+      awayClub.digital.engagementRate = clamp(awayClub.digital.engagementRate + (result.score.away > result.score.home ? 2 : -1), 2, 95);
+    }
+
     for (const delta of result.postMatchEffects.playerDeltas) {
       const player = this.getPlayer(delta.playerId);
       if (!player) {
@@ -3499,7 +3913,7 @@ export class WorldStore {
     row.lost += 1;
   }
 
-  private enrichStandings(seasonId: string, rows: StandingRow[]): StandingRow[] {
+  private enrichStandings(seasonId: string, rows: StandingRow[], zones: LeagueZoneDefinition[] = defaultLeagueZones): StandingRow[] {
     const sorted = [...rows].sort((left, right) => {
       if (right.points !== left.points) {
         return right.points - left.points;
@@ -3514,7 +3928,7 @@ export class WorldStore {
 
     return sorted.map((row, index) => {
       const position = index + 1;
-      const zone = this.getZoneForPosition(position);
+      const zone = this.getZoneForPosition(position, zones);
       const xg = this.getClubSeasonXg(row.clubId, seasonId, row);
       const form = this.getClubForm(row.clubId, seasonId, row);
       const movement = this.getClubMovement(row.clubId, seasonId, position);
@@ -3538,8 +3952,8 @@ export class WorldStore {
     });
   }
 
-  private getZoneForPosition(position: number): LeagueZoneType | undefined {
-    return leagueZones.find((zone) => position >= zone.start && position <= zone.end)?.type;
+  private getZoneForPosition(position: number, zones: LeagueZoneDefinition[]): LeagueZoneType | undefined {
+    return zones.find((zone) => position >= zone.start && position <= zone.end)?.type;
   }
 
   private getContextualMarkers({
@@ -3834,8 +4248,34 @@ export class WorldStore {
     const date = new Date(this.world.season.currentDate);
     date.setUTCDate(date.getUTCDate() + 1);
     this.world.season.currentDate = date.toISOString().slice(0, 10);
+    this.tickEconomy();
     this.persistWorld();
     return this.world.season;
+  }
+
+  private tickEconomy() {
+    for (const club of this.world.clubs) {
+      if (club.finances.debt > 0) {
+        // Apply daily interest (~8% annual -> roughly 0.0219% daily)
+        const dailyInterest = club.finances.debt * 0.000219;
+        const interestOwed = Math.round(dailyInterest);
+        club.finances.balance -= interestOwed;
+        // Optional: add to ledger for accounting
+      }
+
+      if (club.digital) {
+        // Daily social drift: -0.5% to +1% of engagement randomly affects followers
+        const drift = (Math.random() * 1.5 - 0.5) * 0.01;
+        const viralBonus = Math.random() > 0.98 ? (Math.random() * 1000) : 0; // 2% chance of virality
+        
+        club.digital.followers = Math.round(club.digital.followers * (1 + drift) + viralBonus);
+        
+        // Engagement stabilizes back to normal over time based on reputation
+        const targetEngagement = 10 + (club.reputation / 10);
+        const engagementCorrection = (targetEngagement - club.digital.engagementRate) * 0.05;
+        club.digital.engagementRate = clamp(club.digital.engagementRate + engagementCorrection, 2, 95);
+      }
+    }
   }
 
   simulateWeek(): { results: MatchRecord[]; season: SeasonState } {
@@ -4012,8 +4452,14 @@ export class WorldStore {
       familiarity: 58,
       reportQuality: leadScout?.overall ?? 63,
       fitScore: clamp(Math.round((player.potential + player.roleFit.score) / 2), 45, 96),
-      estimatedMarketValue: player.marketValue.amount,
-      wageEstimate: player.contract.weeklyWage,
+      estimatedMarketValueRange: [
+        player.marketValue.amount * 0.9,
+        player.marketValue.amount * 1.1
+      ],
+      wageEstimateRange: [
+        player.contract.weeklyWage * 0.9,
+        player.contract.weeklyWage * 1.1
+      ],
       recommendation: `${player.firstName} ${player.lastName} was added to the active scouting board.`,
       strengths: player.scouting.knownStrengths.slice(0, 2),
       risks: ["Negotiation complexity"],
@@ -4972,6 +5418,30 @@ export class WorldStore {
       matchId: match?.id,
       playedAt: match?.playedAt
     };
+  }
+
+  takeLoan(saveId: string, clubId: string, amount: number): boolean {
+    const club = this.world.clubs.find(c => c.id === clubId && c.saveId === saveId);
+    if (!club) return false;
+    
+    if (club.finances.debt + amount > club.reputation * 300_000) return false;
+
+    club.finances.balance += amount;
+    club.finances.debt += amount;
+    this.persistWorld();
+    return true;
+  }
+
+  signSponsorship(saveId: string, clubId: string, offerValue: number): boolean {
+    const club = this.world.clubs.find(c => c.id === clubId && c.saveId === saveId);
+    if (!club) return false;
+
+    club.finances.balance += offerValue;
+    if (club.digital) {
+      club.digital.engagementRate = Math.max(2, club.digital.engagementRate - 5);
+    }
+    this.persistWorld();
+    return true;
   }
 }
 

@@ -49,10 +49,11 @@ const createPlayer = (id: string, clubId: string, role: string, positions: Playe
     kicking: positions.includes("GK") ? 13 : undefined
   },
   marketValue: {
-    amount: 1_250_000,
+    amount: 15_000_000,
     currency: "USD",
     trend: "steady",
-    confidence: 80
+    confidence: 80,
+    modifiers: { base: 15_000_000, hype: 1.0, form: 1.0, ageCurve: 1.0 }
   },
   recentForm: {
     score: 72,

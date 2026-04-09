@@ -13,6 +13,7 @@ import { useState } from "react";
 
 import { progressSave } from "../lib/api";
 import { MentionText } from "./mention-text";
+import { RoundResultsModal } from "./round-results-modal";
 
 const fullDate = new Intl.DateTimeFormat("en-US", {
   weekday: "short",
@@ -64,6 +65,7 @@ export function DashboardWorkspace({ initialData, mentionTargets }: DashboardWor
   const [data, setData] = useState<DashboardState>(initialData);
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const [showRoundModal, setShowRoundModal] = useState(false);
 
   const nextFixture = data.dashboard.nextFixture;
   const roundResults = data.simulatedRound ?? data.latestRoundResults;
@@ -79,6 +81,10 @@ export function DashboardWorkspace({ initialData, mentionTargets }: DashboardWor
     try {
       const nextData = await progressSave(action, data.save.id);
       setData(nextData);
+      // Open the round results modal whenever a simulation produces results
+      if (action === "simulate-next-fixture" && nextData.simulatedRound?.length) {
+        setShowRoundModal(true);
+      }
     } catch (progressError) {
       setError(progressError instanceof Error ? progressError.message : "Progression failed.");
     } finally {
@@ -88,6 +94,15 @@ export function DashboardWorkspace({ initialData, mentionTargets }: DashboardWor
 
   return (
     <div className="space-y-8 pb-32">
+      {/* Round results popup modal */}
+      {showRoundModal && latestUserRoundResult ? (
+        <RoundResultsModal
+          userResult={latestUserRoundResult}
+          otherResults={otherRoundResults}
+          onClose={() => setShowRoundModal(false)}
+        />
+      ) : null}
+
       <section className="grid gap-8 xl:grid-cols-[minmax(0,1.45fr)_360px]">
         <div className="overflow-hidden rounded-[2rem] bg-ink text-mist">
           <div className="grid gap-8 px-6 py-7 sm:px-8 lg:grid-cols-[1.2fr_0.8fr]">
@@ -104,7 +119,7 @@ export function DashboardWorkspace({ initialData, mentionTargets }: DashboardWor
                 </h2>
                 <p className="mt-4 max-w-xl text-sm text-mist/72">
                   {nextFixture
-                    ? `${nextFixture.home ? "Home" : "Away"} • ${nextFixture.competition.toUpperCase()} • ${compactDate.format(new Date(nextFixture.date))}`
+                    ? `${nextFixture.home ? "Home" : "Away"} \u2022 ${nextFixture.competition.toUpperCase()} \u2022 ${compactDate.format(new Date(nextFixture.date))}`
                     : "The current calendar is clear. Advance the save to move into the next phase."}
                 </p>
               </div>
@@ -135,44 +150,16 @@ export function DashboardWorkspace({ initialData, mentionTargets }: DashboardWor
                   Match Center
                 </Link>
               </div>
-              {latestUserRoundResult ? (
-                <div className="space-y-3 rounded-3xl border border-white/10 bg-white/6 px-4 py-3 text-sm text-mist/82">
-                  <p>
-                    Latest result: {latestUserRoundResult.score.home}-{latestUserRoundResult.score.away},{" "}
-                    <Link href={`/clubs/${latestUserRoundResult.homeClub.id}`} className="underline underline-offset-4">
-                      {latestUserRoundResult.homeClub.name}
-                    </Link>{" "}
-                    vs{" "}
-                    <Link href={`/clubs/${latestUserRoundResult.awayClub.id}`} className="underline underline-offset-4">
-                      {latestUserRoundResult.awayClub.name}
-                    </Link>
-                    .{" "}
-                    <Link href={`/matches/${latestUserRoundResult.matchId}`} className="underline underline-offset-4">
-                      Open result page
-                    </Link>
-                  </p>
-                  {otherRoundResults.length > 0 ? (
-                    <div className="space-y-2 border-t border-white/10 pt-3">
-                      <p className="text-xs uppercase tracking-[0.18em] text-mist/60">Other match outcomes</p>
-                      {otherRoundResults.map((result) => (
-                        <div key={result.matchId} className="flex items-center justify-between gap-3 text-xs sm:text-sm">
-                          <span>
-                            <Link href={`/clubs/${result.homeClub.id}`} className="underline underline-offset-4">
-                              {result.homeClub.shortName}
-                            </Link>{" "}
-                            {result.score.home}-{result.score.away}{" "}
-                            <Link href={`/clubs/${result.awayClub.id}`} className="underline underline-offset-4">
-                              {result.awayClub.shortName}
-                            </Link>
-                          </span>
-                          <Link href={`/matches/${result.matchId}`} className="underline underline-offset-4">
-                            Match
-                          </Link>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
+              {/* Latest result chip — visible after dismissing the modal */}
+              {latestUserRoundResult && !showRoundModal ? (
+                <button
+                  type="button"
+                  onClick={() => setShowRoundModal(true)}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/6 px-4 py-2 text-xs text-mist/78 transition hover:border-white/22 hover:text-mist"
+                >
+                  Latest result: {latestUserRoundResult.homeClub.shortName} {latestUserRoundResult.score.home}\u2013{latestUserRoundResult.score.away} {latestUserRoundResult.awayClub.shortName}
+                  <span className="text-[10px] text-mist/50">View ↗</span>
+                </button>
               ) : null}
               {error ? <p className="text-sm text-ember">{error}</p> : null}
             </div>

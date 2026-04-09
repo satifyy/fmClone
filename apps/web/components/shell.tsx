@@ -1,9 +1,6 @@
 import Link from "next/link";
 import { ReactNode } from "react";
 
-import { getClubs } from "../lib/api";
-import { TeamSelector } from "./team-selector";
-
 const navGroups = [
   {
     title: "Control",
@@ -22,7 +19,9 @@ const navGroups = [
       { href: "/training", label: "Training" },
       { href: "/tactics", label: "Tactics" },
       { href: "/scouting", label: "Scouting" },
-      { href: "/transfers", label: "Transfers" }
+      { href: "/transfers", label: "Transfers" },
+      { href: "/staff", label: "Staff" },
+      { href: "/academy", label: "Academy" }
     ]
   },
   {
@@ -35,9 +34,7 @@ const navGroups = [
   }
 ];
 
-export const Shell = async ({ children }: { children: ReactNode }) => {
-  const clubs = await getClubs().catch(() => []);
-
+export const Shell = ({ children }: { children: ReactNode }) => {
   return (
     <div className="min-h-screen bg-[#f4efe4] text-ink">
       <div className="grid min-h-screen lg:grid-cols-[290px_minmax(0,1fr)]">
@@ -50,8 +47,6 @@ export const Shell = async ({ children }: { children: ReactNode }) => {
           </div>
 
           <div className="space-y-5">
-            <TeamSelector clubs={clubs} />
-
             {navGroups.map((group) => (
               <section key={group.title} className="space-y-2">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-mist/52">{group.title}</p>

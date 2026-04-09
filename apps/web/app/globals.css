@@ -31,3 +31,13 @@ table {
   border-collapse: collapse;
 }
 
+dialog {
+  border: none;
+  padding: 0;
+}
+
+dialog::backdrop {
+  background: rgba(13, 27, 30, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}

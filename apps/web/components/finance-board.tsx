@@ -75,10 +75,14 @@ export function FinanceBoard({ initialData }: FinanceBoardProps) {
 
   return (
     <div className="space-y-6">
-      <section className="grid gap-4 lg:grid-cols-3">
+      <section className="grid gap-4 lg:grid-cols-5">
         <div className="border border-ink/10 bg-[#f8f3ea] p-5">
           <p className="text-xs uppercase tracking-[0.2em] text-ink/55">Balance</p>
           <p className="mt-2 text-3xl">{money.format(data.finances.balance)}</p>
+        </div>
+        <div className="border border-ink/10 bg-[#f8f3ea] p-5">
+          <p className="text-xs uppercase tracking-[0.2em] text-ink/55">Total Debt</p>
+          <p className="mt-2 text-3xl text-ember/90">{money.format(data.finances.debt ?? 0)}</p>
         </div>
         <div className="border border-ink/10 bg-[#f8f3ea] p-5">
           <p className="text-xs uppercase tracking-[0.2em] text-ink/55">Transfer Budget</p>
@@ -87,6 +91,10 @@ export function FinanceBoard({ initialData }: FinanceBoardProps) {
         <div className="border border-ink/10 bg-[#f8f3ea] p-5">
           <p className="text-xs uppercase tracking-[0.2em] text-ink/55">Wage Budget</p>
           <p className="mt-2 text-3xl">{money.format(data.finances.wageBudget)}</p>
+        </div>
+        <div className="border border-ink/10 bg-[#f8f3ea] p-5">
+          <p className="text-xs uppercase tracking-[0.2em] text-ink/55">Digital Follows</p>
+          <p className="mt-2 text-3xl">{Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(data.digital?.followers ?? 0)}</p>
         </div>
       </section>
 
@@ -193,8 +201,40 @@ export function FinanceBoard({ initialData }: FinanceBoardProps) {
             >
               Trim wage bill
             </button>
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => runMechanic("take-loan")}
+              className="border border-ink/15 bg-sand/30 px-3 py-2 text-xs uppercase tracking-[0.16em] text-ink disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              Take $2.5M Loan
+            </button>
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => runMechanic("pay-debt")}
+              className="border border-ink/15 bg-sand/30 px-3 py-2 text-xs uppercase tracking-[0.16em] text-ink disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              Pay Down Debt
+            </button>
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => runMechanic("sign-sponsorship")}
+              className="border border-ink/15 bg-sand/30 px-3 py-2 text-xs uppercase tracking-[0.16em] text-ink disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              Sign Sponsor
+            </button>
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => runMechanic("viral-campaign")}
+              className="border border-ink/15 bg-sand/30 px-3 py-2 text-xs uppercase tracking-[0.16em] text-ink disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              Viral Ad Campaign
+            </button>
           </div>
-          <p className="mt-4 text-xs text-ink/55">These actions persist and update board confidence calculations.</p>
+          <p className="mt-4 text-xs text-ink/55">These actions persist and update board confidence calculations. Digital hooks cost money but build following.</p>
         </article>
 
         <aside className="border border-ink/10 bg-white/60 p-5">

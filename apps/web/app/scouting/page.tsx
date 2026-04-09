@@ -128,7 +128,9 @@ export default async function ScoutingPage() {
                     </div>
                     <div>
                       <p className="text-xs uppercase tracking-[0.18em] text-ink/48">Value</p>
-                      <p className="mt-2 text-xl">{money(entry.knowledge.estimatedMarketValue)}</p>
+                      <p className="mt-2 text-xl">
+                        {money(entry.knowledge.estimatedMarketValueRange[0])} - {money(entry.knowledge.estimatedMarketValueRange[1])}
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs uppercase tracking-[0.18em] text-ink/48">Scout accuracy</p>

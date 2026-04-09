@@ -89,6 +89,7 @@ export type MatchdayScoreboard = {
 };
 
 export type StandingRow = {
+  leagueId?: string;
   clubId: string;
   clubName: string;
   position?: number;
