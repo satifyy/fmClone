@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { PlayerActionButtons } from "../../../components/player-action-buttons";
 import { SectionTitle } from "../../../components/section-title";
 import { Shell } from "../../../components/shell";
-import { fetchClubDetail, fetchClubSquad } from "../../../lib/api";
+import { defaultSaveId, fetchClubDetail, fetchClubSquad } from "../../../lib/api";
 
 type PageProps = {
   params: Promise<{
@@ -139,7 +140,7 @@ export default async function ClubPage({ params }: PageProps) {
           </div>
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
           <div className="border border-ink/10 bg-white/55 p-6">
             <p className="text-xs uppercase tracking-[0.22em] text-ink/55">Recent results</p>
             <div className="mt-4 space-y-3">
@@ -183,24 +184,35 @@ export default async function ClubPage({ params }: PageProps) {
           </div>
 
           <aside className="border border-ink/10 bg-white/55 p-6">
-            <p className="text-xs uppercase tracking-[0.22em] text-ink/55">Squad snapshot</p>
-            <div className="mt-4 space-y-3">
-              {(squad?.players ?? []).slice(0, 8).map((player) => (
-                <div key={player.id} className="flex items-center justify-between gap-4 border-b border-ink/8 pb-3 last:border-b-0 last:pb-0">
-                  <div>
-                    <Link href={`/players/${player.id}`} className="font-medium underline-offset-4 hover:underline">
-                      {player.firstName} {player.lastName}
-                    </Link>
-                    <p className="mt-1 text-sm text-ink/60">
-                      {player.positions.join("/")} • {player.role}
-                    </p>
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-xs uppercase tracking-[0.22em] text-ink/55">Full squad actions</p>
+              <span className="text-sm text-ink/55">{squad?.players.length ?? 0} players</span>
+            </div>
+            <div className="mt-4 max-h-[620px] space-y-4 overflow-auto pr-1">
+              {(squad?.players ?? []).map((player) => (
+                <div key={player.id} className="border-b border-ink/8 pb-4 last:border-b-0 last:pb-0">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <Link href={`/players/${player.id}`} className="font-medium underline-offset-4 hover:underline">
+                        {player.firstName} {player.lastName}
+                      </Link>
+                      <p className="mt-1 text-sm text-ink/60">
+                        {player.positions.join("/")} • {player.role}
+                      </p>
+                    </div>
+                    <div className="text-right text-sm">
+                      <p>{player.seasonStats.goals} G</p>
+                      <p className="text-ink/60">{player.seasonStats.assists} A</p>
+                    </div>
                   </div>
-                  <div className="text-right text-sm">
-                    <p>{player.seasonStats.goals} G</p>
-                    <p className="text-ink/60">{player.seasonStats.assists} A</p>
+                  <div className="mt-3">
+                    <PlayerActionButtons playerId={player.id} saveId={defaultSaveId} initialInteraction={player.interaction} compact />
                   </div>
                 </div>
               ))}
+              {(squad?.players.length ?? 0) === 0 ? (
+                <p className="text-sm text-ink/62">No squad data is available for this club.</p>
+              ) : null}
             </div>
           </aside>
         </section>

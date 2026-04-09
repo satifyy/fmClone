@@ -5,15 +5,18 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import type { InboxNotification } from "@fm/shared-types";
+import type { MentionTarget } from "@fm/shared-types";
 
 import { markInboxRead, runInboxAction } from "../lib/api";
+import { MentionText } from "./mention-text";
 
 type InboxListProps = {
   initialInbox: InboxNotification[];
   saveId: string;
+  mentionTargets: MentionTarget[];
 };
 
-export function InboxList({ initialInbox, saveId }: InboxListProps) {
+export function InboxList({ initialInbox, saveId, mentionTargets }: InboxListProps) {
   const [items, setItems] = useState(initialInbox);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +74,7 @@ export function InboxList({ initialInbox, saveId }: InboxListProps) {
             ) : (
               <h2 className="font-display text-3xl tracking-tight">{item.title}</h2>
             )}
-            <p className="mt-3 max-w-2xl text-sm text-ink/68">{item.summary}</p>
+            <MentionText text={item.summary} mentions={mentionTargets} className="mt-3 block max-w-2xl text-sm text-ink/68" />
             {item.actionHref && item.actionType !== "simulate-next-fixture" ? (
               <p className="mt-3 text-xs uppercase tracking-[0.18em] text-ink/50">Routes to {item.actionHref}</p>
             ) : null}

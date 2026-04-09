@@ -22,7 +22,11 @@ export default function MatchCenterPage() {
             <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_auto_1fr] lg:items-end">
               <div>
                 <p className="text-sm uppercase tracking-[0.18em] text-mist/55">{headline.homeClub.shortName}</p>
-                <h2 className="mt-2 font-display text-4xl tracking-tight">{headline.homeClub.name}</h2>
+                <h2 className="mt-2 font-display text-4xl tracking-tight">
+                  <Link href={`/clubs/${headline.homeClub.id}`} className="underline-offset-4 hover:underline">
+                    {headline.homeClub.name}
+                  </Link>
+                </h2>
               </div>
               <div className="text-center">
                 <p className="text-xs uppercase tracking-[0.22em] text-field">{headline.minute}' live</p>
@@ -32,7 +36,11 @@ export default function MatchCenterPage() {
               </div>
               <div className="lg:text-right">
                 <p className="text-sm uppercase tracking-[0.18em] text-mist/55">{headline.awayClub.shortName}</p>
-                <h2 className="mt-2 font-display text-4xl tracking-tight">{headline.awayClub.name}</h2>
+                <h2 className="mt-2 font-display text-4xl tracking-tight">
+                  <Link href={`/clubs/${headline.awayClub.id}`} className="underline-offset-4 hover:underline">
+                    {headline.awayClub.name}
+                  </Link>
+                </h2>
               </div>
             </div>
             <p className="mt-6 max-w-2xl text-sm text-mist/72">{headline.note}</p>
@@ -63,11 +71,19 @@ export default function MatchCenterPage() {
                   key={fixture.fixtureId}
                   className="grid gap-3 border-b border-ink/8 pb-4 last:border-b-0 last:pb-0 sm:grid-cols-[1fr_auto_1fr_auto]"
                 >
-                  <div className="text-lg font-medium">{fixture.homeClub.name}</div>
+                  <div className="text-lg font-medium">
+                    <Link href={`/clubs/${fixture.homeClub.id}`} className="underline-offset-4 hover:underline">
+                      {fixture.homeClub.name}
+                    </Link>
+                  </div>
                   <div className="text-center font-display text-3xl tracking-tight">
                     {fixture.score.home}-{fixture.score.away}
                   </div>
-                  <div className="text-lg font-medium sm:text-right">{fixture.awayClub.name}</div>
+                  <div className="text-lg font-medium sm:text-right">
+                    <Link href={`/clubs/${fixture.awayClub.id}`} className="underline-offset-4 hover:underline">
+                      {fixture.awayClub.name}
+                    </Link>
+                  </div>
                   <div className="text-right text-xs uppercase tracking-[0.18em] text-field">
                     {fixture.state === "live" ? `${fixture.minute}' live` : "final"}
                   </div>

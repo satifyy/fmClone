@@ -1,6 +1,9 @@
+import Link from "next/link";
+
+import { PlayerActionButtons } from "../../components/player-action-buttons";
 import { SectionTitle } from "../../components/section-title";
 import { Shell } from "../../components/shell";
-import { getScoutingPage } from "../../lib/api";
+import { defaultSaveId, getScoutingPage } from "../../lib/api";
 
 const money = (amount: number) =>
   new Intl.NumberFormat("en-US", {
@@ -108,7 +111,9 @@ export default async function ScoutingPage() {
                     <span>{entry.knowledge.assignedCoverage}</span>
                   </div>
                   <h2 className="mt-2 font-display text-3xl tracking-tight">
-                    {entry.player.firstName} {entry.player.lastName}
+                    <Link href={`/players/${entry.player.id}`} className="underline-offset-4 hover:underline">
+                      {entry.player.firstName} {entry.player.lastName}
+                    </Link>
                   </h2>
                   <p className="mt-2 text-sm text-ink/68">{entry.knowledge.recommendation}</p>
 
@@ -143,6 +148,27 @@ export default async function ScoutingPage() {
                     <div>
                       <p className="text-xs uppercase tracking-[0.18em] text-ink/48">Unknowns</p>
                       <p className="mt-2 text-ink/68">{entry.knowledge.unknowns.join(", ")}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 border-t border-ink/10 pt-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-ink/48">Recruitment actions</p>
+                    <div className="mt-3">
+                      <PlayerActionButtons
+                        playerId={entry.player.id}
+                        saveId={defaultSaveId}
+                        initialInteraction={
+                          entry.interaction
+                            ? {
+                                action: entry.interaction.action,
+                                status: entry.interaction.status,
+                                note: entry.interaction.note,
+                                updatedAt: entry.interaction.updatedAt
+                              }
+                            : undefined
+                        }
+                        compact
+                      />
                     </div>
                   </div>
                 </div>

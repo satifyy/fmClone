@@ -90,6 +90,17 @@ export const savesRoutes: FastifyPluginAsync = async (app) => {
     return summary;
   });
 
+  app.get("/saves/:id/mentions", async (request, reply) => {
+    const params = z.object({ id: z.string() }).parse(request.params);
+    const save = worldStore.getSave(params.id);
+    if (!save) {
+      reply.code(404);
+      return { message: "Save not found" };
+    }
+
+    return worldStore.listMentionTargets(params.id);
+  });
+
   app.post("/saves/:id/progression", async (request, reply) => {
     const params = z.object({ id: z.string() }).parse(request.params);
     const body = z

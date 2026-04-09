@@ -65,6 +65,19 @@ export type LongTermFinancialPlan = {
   risks: string[];
 };
 
+export type FinanceMechanicAction = "request-investment" | "commercial-push" | "trim-wage-bill";
+
+export type FinanceMechanicOutcome = {
+  id: string;
+  action: FinanceMechanicAction;
+  occurredOn: string;
+  message: string;
+  boardDelta: number;
+  balanceDelta: number;
+  transferBudgetDelta: number;
+  wageBudgetDelta: number;
+};
+
 export type ClubFinanceBoardPayload = {
   clubId: string;
   finances: Club["finances"];
@@ -73,6 +86,12 @@ export type ClubFinanceBoardPayload = {
   adjustmentRules: BudgetAdjustmentRule[];
   investorEvents: InvestorEvent[];
   longTermPlan: LongTermFinancialPlan;
+  recentMechanics: FinanceMechanicOutcome[];
+};
+
+export type FinanceMechanicResponse = {
+  board: ClubFinanceBoardPayload;
+  outcome: FinanceMechanicOutcome;
 };
 
 export type ClubFinancialHealth = "wealthy" | "stable" | "watchlist" | "strained";

@@ -4,6 +4,8 @@ import { z } from "zod";
 import { worldStore } from "../../lib/world-store";
 
 export const clubsRoutes: FastifyPluginAsync = async (app) => {
+  app.get("/clubs", async () => worldStore.listClubs());
+
   app.get("/clubs/:id", async (request, reply) => {
     const params = z.object({ id: z.string() }).parse(request.params);
     const club = worldStore.getClubDetail(params.id);
@@ -74,6 +76,24 @@ export const clubsRoutes: FastifyPluginAsync = async (app) => {
     }
 
     return payload;
+  });
+
+  app.post("/clubs/:id/finances/mechanics", async (request, reply) => {
+    const params = z.object({ id: z.string() }).parse(request.params);
+    const body = z
+      .object({
+        action: z.enum(["request-investment", "commercial-push", "trim-wage-bill"]),
+        saveId: z.string().optional()
+      })
+      .parse(request.body);
+
+    const result = worldStore.runFinanceMechanic(params.id, body.action, body.saveId);
+    if (!result) {
+      reply.code(404);
+      return { message: "Club not found" };
+    }
+
+    return result;
   });
 
   app.get("/clubs/:id/dashboard", async (request, reply) => {

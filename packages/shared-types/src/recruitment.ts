@@ -6,6 +6,8 @@ export type ScoutingPipelineStage = "discovered" | "tracked" | "live" | "shortli
 export type KnowledgeConfidenceBand = "low" | "medium" | "high";
 export type TransferInterestLevel = "monitor" | "active" | "priority";
 export type TransferDirection = "incoming" | "outgoing";
+export type PlayerInteractionAction = "enquire" | "bid" | "talk";
+export type PlayerInteractionStatus = "monitoring" | "considering" | "engaged" | "paused";
 export type TransferNegotiationStage =
   | "monitoring"
   | "initial-contact"
@@ -78,9 +80,29 @@ export type PlayerKnowledge = {
   attributeEstimates: PlayerAttributeEstimate[];
 };
 
+export type PlayerInteractionRecord = {
+  id: string;
+  saveId: string;
+  actorClubId: string;
+  targetClubId: string;
+  playerId: string;
+  action: PlayerInteractionAction;
+  status: PlayerInteractionStatus;
+  note: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PlayerActionResult = {
+  interaction: PlayerInteractionRecord;
+  message: string;
+  negotiationId?: string;
+};
+
 export type ScoutingPlayerCard = {
   player: Pick<Player, "id" | "clubId" | "firstName" | "lastName" | "age" | "positions" | "role" | "nationality" | "potential">;
   knowledge: PlayerKnowledge;
+  interaction?: PlayerInteractionRecord;
   scoutQualityEffect: {
     averageScoutScore: number;
     expectedAccuracy: number;

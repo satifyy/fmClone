@@ -605,7 +605,8 @@ export function getFallbackSaveDashboard(saveId = "save-alpha"): SaveDashboardPa
         summary: "Review squad role and wage demands before the winter window."
       }
     ],
-    unresolvedTasks: pendingActions.items.slice(0, 6)
+    unresolvedTasks: pendingActions.items.slice(0, 6),
+    latestRoundResults: []
   };
 }
 

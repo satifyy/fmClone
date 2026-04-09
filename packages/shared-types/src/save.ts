@@ -108,6 +108,35 @@ export type SimulatedMatchSummary = {
   };
 };
 
+export type SimulatedRoundMatchSummary = {
+  matchId: string;
+  fixtureId: string;
+  competition: string;
+  date: string;
+  homeClub: {
+    id: string;
+    name: string;
+    shortName: string;
+  };
+  awayClub: {
+    id: string;
+    name: string;
+    shortName: string;
+  };
+  score: {
+    home: number;
+    away: number;
+  };
+  userClubInvolved: boolean;
+};
+
+export type MentionTarget = {
+  id: string;
+  label: string;
+  href: string;
+  type: "club" | "player";
+};
+
 export type SaveDashboardPayload = {
   save: SaveSummary;
   season: SeasonState;
@@ -120,11 +149,13 @@ export type SaveDashboardPayload = {
   injuries: InjuryStatus[];
   contractIssues: ContractIssue[];
   unresolvedTasks: PendingActionItem[];
+  latestRoundResults: SimulatedRoundMatchSummary[];
 };
 
 export type ProgressionResult = SaveDashboardPayload & {
   action: ProgressionAction;
   simulatedMatch?: SimulatedMatchSummary;
+  simulatedRound: SimulatedRoundMatchSummary[];
 };
 
 export type InboxActionResult = {

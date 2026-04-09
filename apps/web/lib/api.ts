@@ -1,5 +1,8 @@
 import type {
+  Club,
   ClubFinanceBoardPayload,
+  FinanceMechanicAction,
+  FinanceMechanicResponse,
   ClubDetail,
   ClubSquad,
   FixtureHistoryResponse,
@@ -11,6 +14,8 @@ import type {
   Player,
   ProgressionAction,
   ProgressionResult,
+  MentionTarget,
+  PlayerActionResult,
   ScoutingPagePayload,
   SaveDashboardPayload,
   SeasonAnalyticsPayload,
@@ -177,12 +182,35 @@ export async function fetchClubDetail(clubId = defaultClubId): Promise<ClubDetai
   }
 }
 
+export async function getClubs(): Promise<Club[]> {
+  return apiFetch<Club[]>("/clubs");
+}
+
+export async function getMentionTargets(saveId = defaultSaveId): Promise<MentionTarget[]> {
+  try {
+    return await apiFetch<MentionTarget[]>(`/saves/${saveId}/mentions`);
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchPlayerProfile(playerId: string): Promise<Player | null> {
   try {
     return await apiFetch<Player>(`/players/${playerId}`);
   } catch {
     return null;
   }
+}
+
+export async function runPlayerAction(
+  playerId: string,
+  action: "enquire" | "bid" | "talk",
+  saveId = defaultSaveId
+): Promise<PlayerActionResult> {
+  return apiMutation<PlayerActionResult>(`/players/${playerId}/actions`, "POST", {
+    action,
+    saveId
+  });
 }
 
 export async function fetchTacticsBoard(clubId = defaultClubId): Promise<TacticalBoardDto | null> {
@@ -275,6 +303,17 @@ export async function adjustClubBudget(
   }
 ): Promise<ClubFinanceBoardPayload> {
   return apiMutation<ClubFinanceBoardPayload>(`/clubs/${clubId}/finances/adjust`, "POST", budgets);
+}
+
+export async function runFinanceMechanic(
+  clubId: string,
+  action: FinanceMechanicAction,
+  saveId = defaultSaveId
+): Promise<FinanceMechanicResponse> {
+  return apiMutation<FinanceMechanicResponse>(`/clubs/${clubId}/finances/mechanics`, "POST", {
+    action,
+    saveId
+  });
 }
 
 export async function getTransferCenter(clubId = defaultClubId): Promise<TransferCenterPayload> {

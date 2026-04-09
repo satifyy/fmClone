@@ -1,11 +1,18 @@
 "use client";
 
-import type { ProgressionAction, ProgressionResult, SaveDashboardPayload } from "@fm/shared-types";
+import type {
+  MentionTarget,
+  ProgressionAction,
+  ProgressionResult,
+  SaveDashboardPayload,
+  SimulatedRoundMatchSummary
+} from "@fm/shared-types";
 
 import Link from "next/link";
 import { useState } from "react";
 
 import { progressSave } from "../lib/api";
+import { MentionText } from "./mention-text";
 
 const fullDate = new Intl.DateTimeFormat("en-US", {
   weekday: "short",
@@ -45,18 +52,25 @@ const statusTone = {
 
 type DashboardWorkspaceProps = {
   initialData: SaveDashboardPayload;
+  mentionTargets: MentionTarget[];
 };
 
 type DashboardState = SaveDashboardPayload & {
   simulatedMatch?: ProgressionResult["simulatedMatch"];
+  simulatedRound?: ProgressionResult["simulatedRound"];
 };
 
-export function DashboardWorkspace({ initialData }: DashboardWorkspaceProps) {
+export function DashboardWorkspace({ initialData, mentionTargets }: DashboardWorkspaceProps) {
   const [data, setData] = useState<DashboardState>(initialData);
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
 
   const nextFixture = data.dashboard.nextFixture;
+  const roundResults = data.simulatedRound ?? data.latestRoundResults;
+  const latestUserRoundResult =
+    roundResults.find((entry) => entry.userClubInvolved) ??
+    toRoundEntryFromSimulatedMatch(data.simulatedMatch);
+  const otherRoundResults = roundResults.filter((entry) => !entry.userClubInvolved);
 
   const handleProgress = async (action: ProgressionAction) => {
     setError(null);
@@ -121,13 +135,43 @@ export function DashboardWorkspace({ initialData }: DashboardWorkspaceProps) {
                   Match Center
                 </Link>
               </div>
-              {data.simulatedMatch ? (
-                <div className="rounded-3xl border border-white/10 bg-white/6 px-4 py-3 text-sm text-mist/82">
-                  Latest result: {data.simulatedMatch.score.home}-{data.simulatedMatch.score.away} vs{" "}
-                  {data.simulatedMatch.opponentName}.{" "}
-                  <Link href={`/matches/${data.simulatedMatch.matchId}`} className="underline underline-offset-4">
-                    Open result page
-                  </Link>
+              {latestUserRoundResult ? (
+                <div className="space-y-3 rounded-3xl border border-white/10 bg-white/6 px-4 py-3 text-sm text-mist/82">
+                  <p>
+                    Latest result: {latestUserRoundResult.score.home}-{latestUserRoundResult.score.away},{" "}
+                    <Link href={`/clubs/${latestUserRoundResult.homeClub.id}`} className="underline underline-offset-4">
+                      {latestUserRoundResult.homeClub.name}
+                    </Link>{" "}
+                    vs{" "}
+                    <Link href={`/clubs/${latestUserRoundResult.awayClub.id}`} className="underline underline-offset-4">
+                      {latestUserRoundResult.awayClub.name}
+                    </Link>
+                    .{" "}
+                    <Link href={`/matches/${latestUserRoundResult.matchId}`} className="underline underline-offset-4">
+                      Open result page
+                    </Link>
+                  </p>
+                  {otherRoundResults.length > 0 ? (
+                    <div className="space-y-2 border-t border-white/10 pt-3">
+                      <p className="text-xs uppercase tracking-[0.18em] text-mist/60">Other match outcomes</p>
+                      {otherRoundResults.map((result) => (
+                        <div key={result.matchId} className="flex items-center justify-between gap-3 text-xs sm:text-sm">
+                          <span>
+                            <Link href={`/clubs/${result.homeClub.id}`} className="underline underline-offset-4">
+                              {result.homeClub.shortName}
+                            </Link>{" "}
+                            {result.score.home}-{result.score.away}{" "}
+                            <Link href={`/clubs/${result.awayClub.id}`} className="underline underline-offset-4">
+                              {result.awayClub.shortName}
+                            </Link>
+                          </span>
+                          <Link href={`/matches/${result.matchId}`} className="underline underline-offset-4">
+                            Match
+                          </Link>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
               {error ? <p className="text-sm text-ember">{error}</p> : null}
@@ -145,7 +189,7 @@ export function DashboardWorkspace({ initialData }: DashboardWorkspaceProps) {
                   <span className="uppercase tracking-[0.18em] text-mist/55">Pressure</span>
                   <span className={pressureTone[data.boardPressure.level]}>{data.boardPressure.score}/100</span>
                 </div>
-                <p className="text-sm text-mist/70">{data.boardPressure.summary}</p>
+                <MentionText text={data.boardPressure.summary} mentions={mentionTargets} className="text-sm text-mist/70" />
               </div>
             </div>
           </div>
@@ -176,8 +220,8 @@ export function DashboardWorkspace({ initialData }: DashboardWorkspaceProps) {
               <Link href="/fixtures" className="block border-b border-ink/8 pb-3 transition hover:text-field">
                 League scoreboard
               </Link>
-              {data.simulatedMatch ? (
-                <Link href={`/matches/${data.simulatedMatch.matchId}`} className="block transition hover:text-field">
+              {latestUserRoundResult ? (
+                <Link href={`/matches/${latestUserRoundResult.matchId}`} className="block transition hover:text-field">
                   Your latest result
                 </Link>
               ) : (
@@ -245,7 +289,7 @@ export function DashboardWorkspace({ initialData }: DashboardWorkspaceProps) {
                       )}
                       <span className={priorityTone[item.priority]}>{item.priority}</span>
                     </div>
-                    <p className="mt-2 text-sm text-ink/68">{item.summary}</p>
+                    <MentionText text={item.summary} mentions={mentionTargets} className="mt-2 block text-sm text-ink/68" />
                   </div>
                 </div>
               ))}
@@ -260,7 +304,7 @@ export function DashboardWorkspace({ initialData }: DashboardWorkspaceProps) {
               {data.scoutingUpdates.map((update) => (
                 <Link key={update.id} href={update.href} className="block border-b border-ink/8 pb-4 transition hover:border-ink/20">
                   <p className="font-medium">{update.title}</p>
-                  <p className="mt-2 text-sm text-ink/68">{update.summary}</p>
+                  <MentionText text={update.summary} mentions={mentionTargets} className="mt-2 block text-sm text-ink/68" />
                 </Link>
               ))}
             </div>
@@ -273,10 +317,12 @@ export function DashboardWorkspace({ initialData }: DashboardWorkspaceProps) {
                 data.injuries.map((item) => (
                   <div key={item.playerId} className="border-b border-ink/8 pb-4">
                     <div className="flex items-center justify-between gap-4">
-                      <span className="font-medium">{item.playerName}</span>
+                      <Link href={`/players/${item.playerId}`} className="font-medium underline-offset-4 hover:underline">
+                        {item.playerName}
+                      </Link>
                       <span className={statusTone[item.status]}>{item.status}</span>
                     </div>
-                    <p className="mt-2 text-sm text-ink/68">{item.summary}</p>
+                    <MentionText text={item.summary} mentions={mentionTargets} className="mt-2 block text-sm text-ink/68" />
                   </div>
                 ))
               ) : (
@@ -292,10 +338,12 @@ export function DashboardWorkspace({ initialData }: DashboardWorkspaceProps) {
                 {data.contractIssues.map((issue) => (
                   <div key={issue.playerId} className="border-b border-ink/8 pb-4">
                     <div className="flex items-center justify-between gap-4">
-                      <span className="font-medium">{issue.playerName}</span>
+                      <Link href={`/players/${issue.playerId}`} className="font-medium underline-offset-4 hover:underline">
+                        {issue.playerName}
+                      </Link>
                       <span className={priorityTone[issue.priority]}>{issue.monthsRemaining} mo</span>
                     </div>
-                    <p className="mt-2 text-sm text-ink/68">{issue.summary}</p>
+                    <MentionText text={issue.summary} mentions={mentionTargets} className="mt-2 block text-sm text-ink/68" />
                   </div>
                 ))}
               </div>
@@ -307,7 +355,10 @@ export function DashboardWorkspace({ initialData }: DashboardWorkspaceProps) {
                 {data.standings.slice(0, 4).map((row, index) => (
                   <div key={row.clubId} className="flex items-center justify-between border-b border-ink/8 pb-3 text-sm">
                     <span>
-                      {index + 1}. {row.clubName}
+                      {index + 1}.{" "}
+                      <Link href={`/clubs/${row.clubId}`} className="underline-offset-4 hover:underline">
+                        {row.clubName}
+                      </Link>
                     </span>
                     <span className="font-medium">{row.points} pts</span>
                   </div>
@@ -354,6 +405,33 @@ export function DashboardWorkspace({ initialData }: DashboardWorkspaceProps) {
       </div>
     </div>
   );
+}
+
+function toRoundEntryFromSimulatedMatch(
+  simulatedMatch: ProgressionResult["simulatedMatch"] | undefined
+): SimulatedRoundMatchSummary | undefined {
+  if (!simulatedMatch) {
+    return undefined;
+  }
+
+  return {
+    matchId: simulatedMatch.matchId,
+    fixtureId: simulatedMatch.fixtureId,
+    competition: simulatedMatch.competition,
+    date: simulatedMatch.date,
+    homeClub: {
+      id: "club-harbor",
+      name: "Harbor Athletic",
+      shortName: "HAA"
+    },
+    awayClub: {
+      id: "club-unknown",
+      name: simulatedMatch.opponentName,
+      shortName: simulatedMatch.opponentName.slice(0, 3).toUpperCase()
+    },
+    score: simulatedMatch.score,
+    userClubInvolved: true
+  };
 }
 
 function Stat({ label, value }: { label: string; value: string }) {

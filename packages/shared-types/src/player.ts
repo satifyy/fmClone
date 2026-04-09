@@ -128,6 +128,13 @@ export type PlayerScoutingKnowledge = {
   unknowns: string[];
 };
 
+export type PlayerInteractionSnapshot = {
+  action: "enquire" | "bid" | "talk";
+  status: "monitoring" | "considering" | "engaged" | "paused";
+  note: string;
+  updatedAt: string;
+};
+
 export type Player = {
   id: string;
   saveId: string;
@@ -153,6 +160,7 @@ export type Player = {
   history: PlayerHistoryEntry[];
   injuries: PlayerInjuryRecord[];
   scouting: PlayerScoutingKnowledge;
+  interaction?: PlayerInteractionSnapshot;
 };
 
 export type SquadGroup = {

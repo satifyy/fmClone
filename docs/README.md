@@ -12,16 +12,16 @@ This folder is the primary documentation set for the FM Clone monorepo.
 - [data-model.md](./data-model.md): current persistence approach and target Prisma model
 - [frontend.md](./frontend.md): web app structure and UI direction
 - [testing.md](./testing.md): current checks and recommended coverage growth
-- [changes.md](./changes.md): outstanding implementation work found from current changes
+- [changes.md](./changes.md): active cycle tracker for new implementation gaps and follow-up tasks
 - [roadmap.md](./roadmap.md): phased implementation priorities from scaffold to fuller v1
 
 ## Current state
 
-The repo is scaffolded and runnable, but it is not feature-complete yet.
+The repo is runnable and the current milestone scope is implemented.
 
-- `apps/api` exposes the intended module boundaries and route surface
-- `packages/simulation` is a deterministic pure match engine
-- `apps/web` is a static frontend shell using mock data
-- Prisma schema exists, but the API currently uses an in-memory world store rather than database-backed repositories
+- `apps/api` serves the expanded route surface used by dashboard, inbox, tactics, standings, analytics, scouting, transfers, and finance pages
+- `packages/simulation` remains the deterministic pure match engine used by backend simulation flows
+- `apps/web` is wired to the API client for primary surfaces, with fallback data where appropriate
+- Prisma-backed world persistence is in place through `world_state` payload storage (not yet fully normalized domain persistence)
 
-Read the docs with that distinction in mind: some pages describe what is implemented now, and some describe the intended target architecture already reflected by the scaffold.
+For new work, use [changes.md](./changes.md) as the active tracker for fresh gaps, regressions, or follow-up enhancements.

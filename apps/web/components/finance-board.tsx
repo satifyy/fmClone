@@ -2,9 +2,9 @@
 
 import { useMemo, useState, useTransition } from "react";
 
-import type { ClubFinanceBoardPayload } from "@fm/shared-types";
+import type { ClubFinanceBoardPayload, FinanceMechanicAction } from "@fm/shared-types";
 
-import { adjustClubBudget, defaultSaveId } from "../lib/api";
+import { adjustClubBudget, defaultSaveId, runFinanceMechanic } from "../lib/api";
 
 const money = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -23,6 +23,23 @@ export function FinanceBoard({ initialData }: FinanceBoardProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const runMechanic = (action: FinanceMechanicAction) => {
+    setError(null);
+    setMessage(null);
+
+    startTransition(async () => {
+      try {
+        const result = await runFinanceMechanic(data.clubId, action, defaultSaveId);
+        setData(result.board);
+        setTransferBudget(result.board.finances.transferBudget);
+        setWageBudget(result.board.finances.wageBudget);
+        setMessage(result.outcome.message);
+      } catch (mechanicError) {
+        setError(mechanicError instanceof Error ? mechanicError.message : "Finance mechanic failed.");
+      }
+    });
+  };
 
   const bounds = useMemo(
     () => ({
@@ -141,6 +158,63 @@ export function FinanceBoard({ initialData }: FinanceBoardProps) {
             <p className="mt-3 text-xs uppercase tracking-[0.16em] text-ink/50">
               Owners: {data.ownership.owners.join(" • ")}
             </p>
+          </div>
+        </aside>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <article className="border border-ink/10 bg-white/60 p-5">
+          <p className="text-xs uppercase tracking-[0.22em] text-ink/55">Finance Mechanics</p>
+          <p className="mt-3 max-w-2xl text-sm text-ink/66">
+            Run active interventions to reshape cash flow and board support without waiting for passive updates.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => runMechanic("request-investment")}
+              className="border border-ink/15 bg-[#f8f3ea] px-3 py-2 text-xs uppercase tracking-[0.16em] text-ink disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              Request investment
+            </button>
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => runMechanic("commercial-push")}
+              className="border border-ink/15 bg-[#f8f3ea] px-3 py-2 text-xs uppercase tracking-[0.16em] text-ink disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              Commercial push
+            </button>
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => runMechanic("trim-wage-bill")}
+              className="border border-ink/15 bg-[#f8f3ea] px-3 py-2 text-xs uppercase tracking-[0.16em] text-ink disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              Trim wage bill
+            </button>
+          </div>
+          <p className="mt-4 text-xs text-ink/55">These actions persist and update board confidence calculations.</p>
+        </article>
+
+        <aside className="border border-ink/10 bg-white/60 p-5">
+          <p className="text-xs uppercase tracking-[0.22em] text-ink/55">Recent Mechanics</p>
+          <div className="mt-4 space-y-3 text-sm">
+            {data.recentMechanics.length > 0 ? (
+              data.recentMechanics.map((entry) => (
+                <div key={entry.id} className="border border-ink/10 bg-[#f8f3ea] p-3">
+                  <p className="font-medium">{new Date(entry.occurredOn).toLocaleDateString("en-US")}</p>
+                  <p className="mt-1 text-ink/66">{entry.message}</p>
+                  <p className="mt-2 text-xs text-ink/55">
+                    Balance {entry.balanceDelta >= 0 ? "+" : ""}
+                    {money.format(entry.balanceDelta)} • Board {entry.boardDelta >= 0 ? "+" : ""}
+                    {entry.boardDelta}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <p className="text-ink/62">No finance mechanics have been triggered in this save.</p>
+            )}
           </div>
         </aside>
       </section>

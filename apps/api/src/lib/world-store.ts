@@ -3,7 +3,10 @@ import type {
   BudgetAdjustmentRule,
   Club,
   ClubDetail,
+  FinanceMechanicAction,
   ClubFinanceBoardPayload,
+  FinanceMechanicOutcome,
+  FinanceMechanicResponse,
   ClubOwnershipProfile,
   ClubSquad,
   ClubDashboard,
@@ -27,7 +30,11 @@ import type {
   PendingActionItem,
   PendingActionSummary,
   Player,
+  PlayerActionResult,
   PlayerAttributeEstimate,
+  PlayerInteractionAction,
+  PlayerInteractionRecord,
+  PlayerInteractionStatus,
   PlayerKnowledge,
   ProgressionAction,
   ProgressionResult,
@@ -47,6 +54,7 @@ import type {
   SeasonArchiveSummary,
   SeasonState,
   SimulatedMatchSummary,
+  SimulatedRoundMatchSummary,
   StandingRow,
   TacticalBoardDto,
   TacticalBoardSlot,
@@ -54,7 +62,8 @@ import type {
   TacticsUpdateRequest,
   TransferCenterItem,
   TransferCenterPayload,
-  TransferNegotiation
+  TransferNegotiation,
+  MentionTarget
 } from "@fm/shared-types";
 
 import { simulateMatch } from "@fm/simulation";
@@ -116,6 +125,12 @@ const lastNames = [
   "Mendez",
   "Reid"
 ];
+
+const financeMechanicLabels: Record<FinanceMechanicAction, string> = {
+  "request-investment": "Request owner investment",
+  "commercial-push": "Run commercial campaign",
+  "trim-wage-bill": "Trim wage bill"
+};
 
 const harborResultEvents: MatchEvent[] = [
   {
@@ -198,6 +213,9 @@ type World = {
   analyticsSnapshots: Record<string, SeasonAnalyticsPayload["trends"]>;
   inbox: InboxNotification[];
   contracts: ContractRecord[];
+  playerInteractions: PlayerInteractionRecord[];
+  financeMechanics: Record<string, FinanceMechanicOutcome[]>;
+  boardConfidenceModifiers: Record<string, number>;
 };
 
 type ClubProfileSeed = {
@@ -2221,7 +2239,10 @@ const createInitialWorld = (): World => {
     transferNegotiations,
     analyticsSnapshots,
     inbox,
-    contracts
+    contracts,
+    playerInteractions: [],
+    financeMechanics: {},
+    boardConfidenceModifiers: {}
   };
 };
 
@@ -2233,10 +2254,19 @@ export class WorldStore {
     void this.hydrateFromPersistence();
   }
 
+  private normalizeWorld(restored: World): World {
+    return {
+      ...restored,
+      playerInteractions: restored.playerInteractions ?? [],
+      financeMechanics: restored.financeMechanics ?? {},
+      boardConfidenceModifiers: restored.boardConfidenceModifiers ?? {}
+    };
+  }
+
   private async hydrateFromPersistence(): Promise<void> {
     const restored = await worldPersistence.load<World>();
     if (restored) {
-      this.world = restored;
+      this.world = this.normalizeWorld(restored);
       return;
     }
 
@@ -2421,7 +2451,8 @@ export class WorldStore {
       scoutingUpdates: this.getScoutingUpdates(saveId),
       injuries: this.getInjuryStatuses(saveId),
       contractIssues: this.getContractIssues(saveId),
-      unresolvedTasks: pendingActions.items.slice(0, 6)
+      unresolvedTasks: pendingActions.items.slice(0, 6),
+      latestRoundResults: this.getLatestRoundResults(saveId)
     };
   }
 
@@ -2433,6 +2464,7 @@ export class WorldStore {
     }
 
     let simulatedMatch: SimulatedMatchSummary | undefined;
+    let simulatedRound: SimulatedRoundMatchSummary[] = this.getLatestRoundResults(saveId);
 
     if (action === "advance-day") {
       const blockReason = this.getAdvanceDayBlockReason(saveId);
@@ -2461,6 +2493,10 @@ export class WorldStore {
         simulatedMatch = this.toSimulatedMatchSummary(club.id, userClubMatch);
       }
 
+      simulatedRound = results
+        .map((match) => this.toSimulatedRoundMatchSummary(club.id, match))
+        .filter((entry): entry is SimulatedRoundMatchSummary => Boolean(entry));
+
       this.updateMatchdayAfterCompletion();
       this.recoverClubPlayers(club.id);
     }
@@ -2477,7 +2513,8 @@ export class WorldStore {
     return {
       ...payload,
       action,
-      simulatedMatch
+      simulatedMatch,
+      simulatedRound
     };
   }
 
@@ -2611,11 +2648,7 @@ export class WorldStore {
       return undefined;
     }
 
-    const linkedSaveId =
-      saveId ??
-      this.world.saves.find((entry) => entry.clubId === clubId)?.id ??
-      this.world.activeSaveId ??
-      this.world.saves[0]?.id;
+    const linkedSaveId = this.resolveLinkedSaveId(clubId, saveId);
     const boardConfidence = linkedSaveId ? this.getBoardConfidence(linkedSaveId) : this.getBoardConfidence(this.world.saves[0]!.id);
     const adjustmentRules = this.getBudgetAdjustmentRules(club);
 
@@ -2642,7 +2675,111 @@ export class WorldStore {
           "Missing promotion targets can reduce projected cash inflow.",
           "Multiple high-wage renewals in one window can compress flexibility."
         ]
+      },
+      recentMechanics: (this.world.financeMechanics[clubId] ?? []).slice(0, 6)
+    };
+  }
+
+  runFinanceMechanic(
+    clubId: string,
+    action: FinanceMechanicAction,
+    saveId?: string
+  ): FinanceMechanicResponse | undefined {
+    const club = this.getClub(clubId);
+    if (!club) {
+      return undefined;
+    }
+
+    const linkedSaveId = this.resolveLinkedSaveId(clubId, saveId);
+    if (!linkedSaveId) {
+      return undefined;
+    }
+
+    const board = this.getBoardConfidence(linkedSaveId);
+    const now = new Date().toISOString();
+    const today = this.world.season.currentDate;
+    let balanceDelta = 0;
+    let transferBudgetDelta = 0;
+    let wageBudgetDelta = 0;
+    let boardDelta = 0;
+    let message = "";
+
+    if (action === "request-investment") {
+      const approved = board.score >= 58 || this.world.season.currentMatchday % 2 === 0;
+      if (approved) {
+        balanceDelta = 900_000;
+        transferBudgetDelta = 375_000;
+        boardDelta = 4;
+        message = "Ownership approved a targeted investment after your latest request.";
+      } else {
+        boardDelta = -3;
+        message = "Ownership declined extra funding and asked for tighter delivery before another request.";
       }
+    }
+
+    if (action === "commercial-push") {
+      balanceDelta = 260_000;
+      transferBudgetDelta = 120_000;
+      boardDelta = 2;
+      message = "Commercial campaign launched with immediate sponsor and hospitality uplift.";
+    }
+
+    if (action === "trim-wage-bill") {
+      balanceDelta = 210_000;
+      transferBudgetDelta = 180_000;
+      wageBudgetDelta = -12_000;
+      boardDelta = 1;
+      message = "Wage commitments were trimmed and short-term transfer liquidity improved.";
+    }
+
+    club.finances.balance = Math.max(0, Math.round(club.finances.balance + balanceDelta));
+    club.finances.transferBudget = Math.max(0, Math.round(club.finances.transferBudget + transferBudgetDelta));
+    club.finances.wageBudget = Math.max(0, Math.round(club.finances.wageBudget + wageBudgetDelta));
+
+    this.world.boardConfidenceModifiers[linkedSaveId] = clamp(
+      (this.world.boardConfidenceModifiers[linkedSaveId] ?? 0) + boardDelta,
+      -20,
+      20
+    );
+
+    const outcome: FinanceMechanicOutcome = {
+      id: createId("finance"),
+      action,
+      occurredOn: now,
+      message,
+      boardDelta,
+      balanceDelta,
+      transferBudgetDelta,
+      wageBudgetDelta
+    };
+
+    this.world.financeMechanics[clubId] = [
+      outcome,
+      ...(this.world.financeMechanics[clubId] ?? []).slice(0, 9)
+    ];
+
+    if (balanceDelta !== 0) {
+      const ledger = investorEventsByClub[clubId] ?? (investorEventsByClub[clubId] = []);
+      ledger.unshift({
+        id: createId("investor-event"),
+        occurredOn: today,
+        title: financeMechanicLabels[action],
+        summary: message,
+        impact: balanceDelta > 0 ? "positive" : "negative",
+        cashDelta: balanceDelta
+      });
+    }
+
+    this.persistWorld();
+
+    const refreshedBoard = this.getClubFinanceBoard(clubId, linkedSaveId);
+    if (!refreshedBoard) {
+      return undefined;
+    }
+
+    return {
+      board: refreshedBoard,
+      outcome
     };
   }
 
@@ -2676,6 +2813,15 @@ export class WorldStore {
     club.finances.wageBudget = Math.round(payload.wageBudget);
     this.persistWorld();
     return this.getClubFinanceBoard(clubId, saveId);
+  }
+
+  private resolveLinkedSaveId(clubId: string, saveId?: string): string | undefined {
+    return (
+      saveId ??
+      this.world.saves.find((entry) => entry.clubId === clubId)?.id ??
+      this.world.activeSaveId ??
+      this.world.saves[0]?.id
+    );
   }
 
   getClub(clubId: string): Club | undefined {
@@ -2806,6 +2952,113 @@ export class WorldStore {
 
   getPlayerRecentForm(playerId: string): PlayerRecentForm | undefined {
     return this.getPlayerProfile(playerId)?.recentForm;
+  }
+
+  runPlayerAction(
+    saveId: string,
+    playerId: string,
+    action: PlayerInteractionAction
+  ): PlayerActionResult | undefined {
+    const actorClub = this.getUserClubForSave(saveId);
+    const player = this.getPlayer(playerId);
+    if (!actorClub || !player) {
+      return undefined;
+    }
+
+    const targetClub = this.getClub(player.clubId);
+    const now = new Date().toISOString();
+    const status: PlayerInteractionStatus = action === "enquire" ? "considering" : "engaged";
+    const note =
+      action === "enquire"
+        ? `Scouting desk opened a market enquiry on ${player.firstName} ${player.lastName}.`
+        : action === "bid"
+          ? `Formal bid strategy opened with ${targetClub?.name ?? "the current club"}.`
+          : `Player-side talks opened to test wage and role expectations.`;
+
+    const existing = this.world.playerInteractions.find(
+      (entry) => entry.saveId === saveId && entry.actorClubId === actorClub.id && entry.playerId === playerId
+    );
+
+    let interaction: PlayerInteractionRecord;
+    if (existing) {
+      existing.action = action;
+      existing.status = status;
+      existing.note = note;
+      existing.updatedAt = now;
+      interaction = existing;
+    } else {
+      interaction = {
+        id: createId("interaction"),
+        saveId,
+        actorClubId: actorClub.id,
+        targetClubId: player.clubId,
+        playerId,
+        action,
+        status,
+        note,
+        createdAt: now,
+        updatedAt: now
+      };
+      this.world.playerInteractions.push(interaction);
+    }
+
+    const knowledge = this.ensurePlayerKnowledge(saveId, actorClub.id, player);
+    knowledge.lastUpdated = this.world.season.currentDate;
+    if (action === "enquire") {
+      knowledge.pipelineStage = knowledge.pipelineStage === "discovered" ? "tracked" : knowledge.pipelineStage;
+      knowledge.interest = knowledge.interest === "monitor" ? "active" : knowledge.interest;
+      knowledge.recommendation = `${player.firstName} ${player.lastName} is now under active market enquiry.`;
+    }
+
+    let negotiationId: string | undefined;
+    if (action === "bid" || action === "talk") {
+      const negotiation = this.upsertNegotiationFromInteraction(saveId, actorClub.id, player, action, now);
+      negotiationId = negotiation.id;
+      knowledge.pipelineStage = "decision";
+      knowledge.interest = action === "talk" ? "priority" : "active";
+      knowledge.recommendation =
+        action === "talk"
+          ? `${player.firstName} ${player.lastName} has moved into player-talks planning.`
+          : `${player.firstName} ${player.lastName} is in a live bid cycle.`;
+    }
+
+    this.persistWorld();
+
+    return {
+      interaction,
+      message:
+        action === "enquire"
+          ? "Enquiry logged and scouting confidence updated."
+          : action === "bid"
+            ? "Bid plan opened and transfer board updated."
+            : "Talks opened and negotiation board updated.",
+      negotiationId
+    };
+  }
+
+  listMentionTargets(saveId = this.world.activeSaveId): MentionTarget[] {
+    const clubTargets = this.world.clubs.map<MentionTarget>((club) => ({
+      id: club.id,
+      label: club.name,
+      href: `/clubs/${club.id}`,
+      type: "club"
+    }));
+
+    if (!saveId) {
+      return clubTargets;
+    }
+
+    const playerTargets = this.world.players
+      .filter((player) => player.saveId === saveId)
+      .slice(0, 160)
+      .map<MentionTarget>((player) => ({
+        id: player.id,
+        label: `${player.firstName} ${player.lastName}`,
+        href: `/players/${player.id}`,
+        type: "player"
+      }));
+
+    return [...clubTargets, ...playerTargets].sort((left, right) => left.label.localeCompare(right.label));
   }
 
   getClubDashboard(clubId: string): ClubDashboard | undefined {
@@ -3519,7 +3772,8 @@ export class WorldStore {
       squadStatus,
       recentForm,
       seasonStats,
-      injuries: squadStatus === "injured" ? createInjuries("injured") : player.injuries
+      injuries: squadStatus === "injured" ? createInjuries("injured") : player.injuries,
+      interaction: this.getPlayerInteractionSnapshot(player.id)
     };
   }
 
@@ -3621,10 +3875,10 @@ export class WorldStore {
     const assignments = this.world.scoutAssignments.filter((assignment) => assignment.saveId === saveId && assignment.clubId === club.id);
     const players = this.world.playerKnowledge
       .filter((knowledge) => knowledge.saveId === saveId && knowledge.clubId === club.id)
-      .map((knowledge) => {
+      .flatMap<ScoutingPagePayload["players"][number]>((knowledge) => {
         const player = this.getPlayer(knowledge.playerId);
         if (!player) {
-          return undefined;
+          return [];
         }
 
         const assignedScouts = knowledge.scoutIds
@@ -3634,7 +3888,7 @@ export class WorldStore {
           ? Math.round(assignedScouts.reduce((sum, scout) => sum + scout.overall, 0) / assignedScouts.length)
           : 0;
 
-        return {
+        return [{
           player: {
             id: player.id,
             clubId: player.clubId,
@@ -3647,14 +3901,14 @@ export class WorldStore {
             potential: player.potential
           },
           knowledge,
+          interaction: this.getLatestPlayerInteraction(saveId, club.id, player.id),
           scoutQualityEffect: {
             averageScoutScore,
             expectedAccuracy: clamp(Math.round(knowledge.reportQuality - (100 - knowledge.familiarity) / 3), 45, 96),
             summary: getScoutEffectSummary(averageScoutScore)
           }
-        };
+        }];
       })
-      .filter((item): item is ScoutingPagePayload["players"][number] => Boolean(item))
       .sort((left, right) => {
         const stageOrder = { decision: 0, shortlisted: 1, live: 2, tracked: 3, discovered: 4 };
         return (
@@ -3676,6 +3930,180 @@ export class WorldStore {
       },
       players
     };
+  }
+
+  private getLatestPlayerInteraction(
+    saveId: string,
+    actorClubId: string,
+    playerId: string
+  ): PlayerInteractionRecord | undefined {
+    return this.world.playerInteractions
+      .filter(
+        (entry) =>
+          entry.saveId === saveId &&
+          entry.actorClubId === actorClubId &&
+          entry.playerId === playerId
+      )
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0];
+  }
+
+  private getPlayerInteractionSnapshot(playerId: string): Player["interaction"] | undefined {
+    const saveId = this.world.activeSaveId;
+    if (!saveId) {
+      return undefined;
+    }
+
+    const actorClub = this.getUserClubForSave(saveId);
+    if (!actorClub) {
+      return undefined;
+    }
+
+    const interaction = this.getLatestPlayerInteraction(saveId, actorClub.id, playerId);
+    if (!interaction) {
+      return undefined;
+    }
+
+    return {
+      action: interaction.action,
+      status: interaction.status,
+      note: interaction.note,
+      updatedAt: interaction.updatedAt
+    };
+  }
+
+  private ensurePlayerKnowledge(saveId: string, clubId: string, player: Player): PlayerKnowledge {
+    const existing = this.world.playerKnowledge.find(
+      (knowledge) => knowledge.saveId === saveId && knowledge.clubId === clubId && knowledge.playerId === player.id
+    );
+    if (existing) {
+      return existing;
+    }
+
+    const leadScout = this.world.scouts.find((scout) => scout.saveId === saveId && scout.clubId === clubId);
+    const estimateKeys: Array<keyof Player["attributes"]> = [
+      "pace",
+      "passing",
+      "finishing",
+      "tackling"
+    ];
+
+    const attributeEstimates: PlayerAttributeEstimate[] = estimateKeys.map((key) => {
+      const expectedValue = player.attributes[key] ?? 10;
+      const expected = typeof expectedValue === "number" ? expectedValue : 10;
+      return {
+        attribute: key,
+        low: clamp(expected - 3, 1, 20),
+        expected,
+        high: clamp(expected + 2, 1, 20),
+        confidence: 62,
+        uncertainty: "medium"
+      };
+    });
+
+    const knowledge: PlayerKnowledge = {
+      id: createId("knowledge"),
+      saveId,
+      clubId,
+      playerId: player.id,
+      scoutIds: leadScout ? [leadScout.id] : [],
+      assignedCoverage: leadScout?.regionExpertise[0] ?? "League",
+      pipelineStage: "tracked",
+      interest: "active",
+      familiarity: 58,
+      reportQuality: leadScout?.overall ?? 63,
+      fitScore: clamp(Math.round((player.potential + player.roleFit.score) / 2), 45, 96),
+      estimatedMarketValue: player.marketValue.amount,
+      wageEstimate: player.contract.weeklyWage,
+      recommendation: `${player.firstName} ${player.lastName} was added to the active scouting board.`,
+      strengths: player.scouting.knownStrengths.slice(0, 2),
+      risks: ["Negotiation complexity"],
+      unknowns: player.scouting.unknowns.length > 0 ? player.scouting.unknowns : ["Long-term role acceptance"],
+      lastUpdated: this.world.season.currentDate,
+      attributeEstimates
+    };
+
+    this.world.playerKnowledge.push(knowledge);
+    return knowledge;
+  }
+
+  private upsertNegotiationFromInteraction(
+    saveId: string,
+    clubId: string,
+    player: Player,
+    action: PlayerInteractionAction,
+    now: string
+  ): TransferNegotiation {
+    const existing = this.world.transferNegotiations.find(
+      (entry) =>
+        entry.saveId === saveId &&
+        entry.clubId === clubId &&
+        entry.playerId === player.id &&
+        entry.direction === "incoming" &&
+        entry.status === "open"
+    );
+
+    const stage = action === "bid" ? "bid-submitted" : "player-talks";
+    const summary =
+      action === "bid"
+        ? "Bid submitted and awaiting response from the selling club."
+        : "Player-side talks are active while offer terms are prepared.";
+    const askingPrice = roundToNearest(player.marketValue.amount * 1.12, 25_000);
+    const latestOffer = action === "bid" ? roundToNearest(player.marketValue.amount * 0.94, 25_000) : undefined;
+    const wageDemand = action === "talk" ? roundToNearest(player.contract.weeklyWage * 1.18, 500) : undefined;
+    const probabilityBase = action === "talk" ? 56 : 52;
+    const probability = clamp(probabilityBase + Math.round((player.potential - 70) * 0.9), 28, 89);
+
+    if (existing) {
+      existing.stage = stage;
+      existing.priority = action === "talk" ? "priority" : "active";
+      existing.askingPrice = askingPrice;
+      existing.latestOffer = latestOffer ?? existing.latestOffer;
+      existing.wageDemand = wageDemand ?? existing.wageDemand;
+      existing.probability = probability;
+      existing.lastUpdated = now;
+      existing.summary = summary;
+      existing.events.push({
+        id: createId("event"),
+        date: now,
+        type: action === "bid" ? "bid" : "contact",
+        title: action === "bid" ? "Bid plan refreshed" : "Player talks opened",
+        summary,
+        amount: latestOffer
+      });
+      return existing;
+    }
+
+    const negotiation: TransferNegotiation = {
+      id: createId("negotiation"),
+      saveId,
+      clubId,
+      playerId: player.id,
+      counterpartyClubId: player.clubId,
+      direction: "incoming",
+      status: "open",
+      stage,
+      priority: action === "talk" ? "priority" : "active",
+      askingPrice,
+      latestOffer,
+      wageDemand,
+      probability,
+      scoutConfidence: clamp(player.scouting.confidence, 45, 98),
+      lastUpdated: now,
+      summary,
+      events: [
+        {
+          id: createId("event"),
+          date: now,
+          type: action === "bid" ? "bid" : "contact",
+          title: action === "bid" ? "Bid submitted" : "Player contact",
+          summary,
+          amount: latestOffer
+        }
+      ]
+    };
+
+    this.world.transferNegotiations.unshift(negotiation);
+    return negotiation;
   }
 
   getTransferCenter(clubId: string): TransferCenterPayload | undefined {
@@ -3876,7 +4304,9 @@ export class WorldStore {
       1,
       table.findIndex((row) => row.clubId === club.id) + 1
     );
-    const pressureScore = Math.min(100, 22 + (position - 1) * 18 + Math.max(0, 12 - this.getClubDashboard(club.id)!.morale) * 2);
+    const basePressure = 22 + (position - 1) * 18 + Math.max(0, 12 - this.getClubDashboard(club.id)!.morale) * 2;
+    const modifier = this.world.boardConfidenceModifiers[saveId] ?? 0;
+    const pressureScore = clamp(Math.round(basePressure - modifier), 0, 100);
 
     if (pressureScore >= 75) {
       return {
@@ -4375,6 +4805,69 @@ export class WorldStore {
       date: fixture.date,
       score: match.result.score
     };
+  }
+
+  private toSimulatedRoundMatchSummary(clubId: string, match: MatchRecord): SimulatedRoundMatchSummary | undefined {
+    const fixture = this.getFixture(match.fixtureId);
+    const homeClub = fixture ? this.getClub(fixture.homeClubId) : undefined;
+    const awayClub = fixture ? this.getClub(fixture.awayClubId) : undefined;
+    if (!fixture || !homeClub || !awayClub) {
+      return undefined;
+    }
+
+    return {
+      matchId: match.id,
+      fixtureId: fixture.id,
+      competition: fixture.competition,
+      date: fixture.date,
+      homeClub: {
+        id: homeClub.id,
+        name: homeClub.name,
+        shortName: homeClub.shortName
+      },
+      awayClub: {
+        id: awayClub.id,
+        name: awayClub.name,
+        shortName: awayClub.shortName
+      },
+      score: match.result.score,
+      userClubInvolved: fixture.homeClubId === clubId || fixture.awayClubId === clubId
+    };
+  }
+
+  private getLatestRoundResults(saveId: string): SimulatedRoundMatchSummary[] {
+    const club = this.getUserClubForSave(saveId);
+    if (!club) {
+      return [];
+    }
+
+    const latestPlayedDate = this.world.matches.reduce<string | undefined>((latest, match) => {
+      const fixture = this.getFixture(match.fixtureId);
+      if (!fixture) {
+        return latest;
+      }
+
+      if (!latest || fixture.date > latest) {
+        return fixture.date;
+      }
+
+      return latest;
+    }, undefined);
+
+    if (!latestPlayedDate) {
+      return [];
+    }
+
+    return this.world.matches
+      .map((match) => this.toSimulatedRoundMatchSummary(club.id, match))
+      .filter((entry): entry is SimulatedRoundMatchSummary => {
+        if (!entry) {
+          return false;
+        }
+
+        return entry.date === latestPlayedDate;
+      })
+      .sort((left, right) => Number(right.userClubInvolved) - Number(left.userClubInvolved));
   }
 
   private getFixturePhase(status: Fixture["status"]): FixturePhase {

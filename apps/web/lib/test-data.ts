@@ -1157,7 +1157,8 @@ export function getFallbackSaveDashboard(currentSaveId = saveId): SaveDashboardP
         summary: "Depth planning and wage structure should be reviewed before winter."
       }
     ],
-    unresolvedTasks: pendingActions.items.slice(0, 6)
+    unresolvedTasks: pendingActions.items.slice(0, 6),
+    latestRoundResults: []
   };
 }
 
@@ -1294,5 +1295,6 @@ export const clubFinanceBoardPayload: ClubFinanceBoardPayload = {
       "Promotion miss lowers projected income.",
       "Multiple major renewals in one window can reduce flexibility."
     ]
-  }
+  },
+  recentMechanics: []
 };
